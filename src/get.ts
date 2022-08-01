@@ -11,7 +11,9 @@ export default async (
   if (!file) {
     return makeResponse(`${name} not found`, 404);
   }
+
   return makeResponse(file.body, 200, {
     "Content-Type": file.httpMetadata.contentType!,
+    "Content-Length": file.size,
   });
 };

@@ -16,6 +16,6 @@ export interface Env {
 
 export type AvatarUploadParams = {
   expiry: string;
-  data: string;
+  dataURL: string;
   sig: string;
 };

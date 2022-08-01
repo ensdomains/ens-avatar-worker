@@ -7,7 +7,7 @@ export const corsHeaders = {
 export const makeResponse = (
   body?: BodyInit | null,
   status?: number,
-  headers?: Record<string, string>
+  headers?: Record<string, any>
 ) => {
   return new Response(
     typeof body === "string" ? JSON.stringify({ message: body }) : body,

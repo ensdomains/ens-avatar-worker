@@ -39,7 +39,7 @@ const _handleFetch =
 const dataURLToBytes = (dataURL: string) => {
   const base64 = dataURL.split(",")[1];
   const mime = dataURL.split(",")[0].split(":")[1].split(";")[0];
-  const bytes = new TextEncoder().encode(base64);
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
   return { mime, bytes };
 };
 
@@ -50,8 +50,8 @@ export default async (
   name: string
 ): Promise<Response> => {
   const handleFetch = _handleFetch(env.REGISTRY_ADDRESS, env.WEB3_ENDPOINT);
-  const { expiry, data, sig } = (await request.json()) as AvatarUploadParams;
-  const { mime, bytes } = dataURLToBytes(data);
+  const { expiry, dataURL, sig } = (await request.json()) as AvatarUploadParams;
+  const { mime, bytes } = dataURLToBytes(dataURL);
   const hash = sha256(bytes);
 
   const verifiedAddress = verifyTypedData(
@@ -91,6 +91,10 @@ export default async (
       `Address ${verifiedAddress} is not the owner of ${name}`,
       403
     );
+  }
+
+  if (parseInt(expiry) < Date.now()) {
+    return makeResponse(`Signature expired`, 403);
   }
 
   const bucket = env.AVATAR_BUCKET;
