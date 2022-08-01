@@ -86,6 +86,12 @@ export default async (
     return makeResponse(`${name} not found`, 404);
   }
 
+  const maxSize = 1024 * 512;
+
+  if (bytes.byteLength > maxSize) {
+    return makeResponse(`Image is too large`, 413);
+  }
+
   if (verifiedAddress !== owner) {
     return makeResponse(
       `Address ${verifiedAddress} is not the owner of ${name}`,
