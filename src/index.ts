@@ -1,4 +1,5 @@
 import onRequestGet from "./get";
+import { makeResponse } from "./helpers";
 import onRequestPut from "./put";
 import { Env } from "./types";
 
@@ -22,7 +23,7 @@ export default {
     const name = url.pathname.split("/").pop();
 
     if (!name) {
-      return new Response("Missing name parameter", { status: 400 });
+      return makeResponse("Missing name parameter", 400);
     }
 
     switch (request.method) {
@@ -32,13 +33,11 @@ export default {
       case "GET": {
         return onRequestGet(request, env, ctx, name);
       }
+      case "OPTIONS": {
+        return makeResponse(null);
+      }
       default:
-        return new Response(`${request.method} not supported`, {
-          status: 405,
-          headers: {
-            Allow: "PUT, GET",
-          },
-        });
+        return makeResponse(`Unsupported method: ${request.method}`, 405);
     }
   },
 };

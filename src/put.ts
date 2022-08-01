@@ -4,6 +4,7 @@ import {
   sha256,
   verifyTypedData,
 } from "ethers/lib/utils";
+import { makeResponse } from "./helpers";
 import { AvatarUploadParams, Env } from "./types";
 
 const _handleFetch =
@@ -82,17 +83,13 @@ export default async (
     const [_owner] = defaultAbiCoder.decode(["address"], ownerData.result);
     owner = _owner;
   } catch {
-    return new Response(`${name} not found`, {
-      status: 404,
-    });
+    return makeResponse(`${name} not found`, 404);
   }
 
   if (verifiedAddress !== owner) {
-    return new Response(
+    return makeResponse(
       `Address ${verifiedAddress} is not the owner of ${name}`,
-      {
-        status: 403,
-      }
+      403
     );
   }
 
@@ -101,12 +98,8 @@ export default async (
     httpMetadata: { contentType: mime },
   });
   if (uploaded.key === name) {
-    return new Response(`${name} uploaded`, {
-      status: 200,
-    });
+    return makeResponse("uploaded", 200);
   } else {
-    return new Response(`${name} not uploaded`, {
-      status: 500,
-    });
+    return makeResponse(`${name} not uploaded`, 500);
   }
 };

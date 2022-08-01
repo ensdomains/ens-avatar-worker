@@ -2,6 +2,9 @@ name = "ens-avatar-worker"
 main = "src/index.ts"
 compatibility_date = "2022-07-31"
 
+node_compat = true
+
 [[r2_buckets]]
 binding = "AVATAR_BUCKET"
 bucket_name = 'avatar-test'
+preview_bucket_name = 'preview-avatar-test'
