@@ -1,0 +1,7 @@
+name = "ens-avatar-worker"
+main = "src/index.ts"
+compatibility_date = "2022-07-31"
+
+[[r2_buckets]]
+binding = "AVATAR_BUCKET"
+bucket_name = 'avatar-test'
