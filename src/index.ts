@@ -1,6 +1,6 @@
-import onRequestGet from "./get";
+import onRequestGet from "@/get";
+import onRequestPut from "@/put";
 import { makeResponse } from "./helpers";
-import onRequestPut from "./put";
 import { Env } from "./types";
 
 /**
