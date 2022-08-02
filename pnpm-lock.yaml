@@ -1,5 +1,10 @@
 lockfileVersion: 5.4
 
+patchedDependencies:
+  jest-environment-miniflare@2.6.0:
+    hash: oquopq5hx5wpatddqh5dwtcenq
+    path: patches/jest-environment-miniflare@2.6.0.patch
+
 specifiers:
   '@cloudflare/workers-types': ^3.14.1
   '@types/jest': ^28.1.6
@@ -18,7 +23,7 @@ devDependencies:
   '@cloudflare/workers-types': 3.14.1
   '@types/jest': 28.1.6
   jest: 28.1.3
-  jest-environment-miniflare: 2.6.0_jest@28.1.3
+  jest-environment-miniflare: 2.6.0_oquopq5hx5wpatddqh5dwtcenq_jest@28.1.3
   miniflare: 2.6.0
   ts-jest: 28.0.7_bi2kohzqnxavgozw3csgny5hju
   typescript: 4.7.4
@@ -2464,7 +2469,7 @@ packages:
       pretty-format: 28.1.3
     dev: true
 
-  /jest-environment-miniflare/2.6.0_jest@28.1.3:
+  /jest-environment-miniflare/2.6.0_oquopq5hx5wpatddqh5dwtcenq_jest@28.1.3:
     resolution: {integrity: sha512-++2jRQZEotttSZkuHEt7ehcvL9zorjF8p/F5vZSjAuOmmo6l4sMLYxGPreQgwMSOA9zhAdROWM6pUTK2SEX9tg==}
     engines: {node: '>=16.7'}
     peerDependencies:
@@ -2494,6 +2499,7 @@ packages:
       - ioredis
       - utf-8-validate
     dev: true
+    patched: true
 
   /jest-environment-node/28.1.3:
     resolution: {integrity: sha512-ugP6XOhEpjAEhGYvp5Xj989ns5cB1K6ZdjBYuS30umT4CQEETaxSiPcZ/E1kFktX4GkrcM4qu07IIlDYX1gp+A==}

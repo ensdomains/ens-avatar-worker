@@ -20,5 +20,10 @@
   },
   "dependencies": {
     "ethers": "^5.6.9"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "jest-environment-miniflare@2.6.0": "patches/jest-environment-miniflare@2.6.0.patch"
+    }
   }
 }
