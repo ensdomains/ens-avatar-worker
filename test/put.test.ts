@@ -19,7 +19,7 @@ const dataURLToBytes = (dataURL: string) => {
 const wallet = Wallet.fromMnemonic(
   "test test test test test test test test test test test junk"
 );
-const expiry = String(Date.now() + 1000);
+const expiry = String(Date.now() + 100000);
 const name = "test";
 
 const walletAddress = wallet.address;

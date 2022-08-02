@@ -100,7 +100,6 @@ export default async (
   }
 
   if (parseInt(expiry) < Date.now()) {
-    console.log(expiry, Date.now());
     return makeResponse(`Signature expired`, 403);
   }
 
