@@ -37,9 +37,7 @@ jobs:
 
       - name: Bump version to ${{ github.event.release.tag_name }}
         run: |
-          pnpm version ${{ github.event.release.tag_name }}
-          git add .
-          git commit -m "${{ github.event.release.tag_name }}"
+          pnpm version ${{ github.event.release.tag_name }} --no-git-tag-version
 
       - name: Publish
         uses: cloudflare/wrangler-action@2.0.0
