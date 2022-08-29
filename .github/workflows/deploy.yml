@@ -43,9 +43,6 @@ jobs:
         uses: cloudflare/wrangler-action@2.0.0
         with:
           apiKey: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          env:
-            WEB3_ENDPOINT: "https://web3.ens.domains/v1/mainnet"
-            REGISTRY_ADDRESS: "0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e"
 
       - name: Push changes
         run: git push
