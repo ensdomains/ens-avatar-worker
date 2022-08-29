@@ -58,7 +58,7 @@ describe("put", () => {
     }) as any);
     const dataURL = "data:image/jpeg;base64,test123123";
 
-    const request = new Request("http://localhost/test", {
+    const request = new Request("http://localhost/mainnet/test", {
       body: JSON.stringify({
         expiry,
         dataURL,
@@ -71,7 +71,8 @@ describe("put", () => {
       request,
       getMiniflareBindings() as any,
       {} as any,
-      "test"
+      "test",
+      "mainnet"
     );
     const { message } = await response.json();
 
@@ -94,7 +95,7 @@ describe("put", () => {
         .map(() => Math.floor(Math.random() * 256).toString(16))
         .join("");
 
-    const request = new Request("http://localhost/test", {
+    const request = new Request("http://localhost/mainnet/test", {
       body: JSON.stringify({
         expiry,
         dataURL,
@@ -107,7 +108,8 @@ describe("put", () => {
       request,
       getMiniflareBindings() as any,
       {} as any,
-      "test"
+      "test",
+      "mainnet"
     );
     const { message } = await response.json();
 
@@ -128,7 +130,7 @@ describe("put", () => {
 
     const dataURL = "data:image/jpeg;base64,test123123";
 
-    const request = new Request("http://localhost/test", {
+    const request = new Request("http://localhost/mainnet/test", {
       body: JSON.stringify({
         expiry,
         dataURL,
@@ -141,7 +143,8 @@ describe("put", () => {
       request,
       getMiniflareBindings() as any,
       {} as any,
-      "test"
+      "test",
+      "mainnet"
     );
     const { message } = await response.json();
 
@@ -159,7 +162,7 @@ describe("put", () => {
 
     const dataURL = "data:image/jpeg;base64,test123123";
 
-    const request = new Request("http://localhost/test", {
+    const request = new Request("http://localhost/mainnet/test", {
       body: JSON.stringify({
         expiry: "1",
         dataURL,
@@ -177,7 +180,8 @@ describe("put", () => {
       request,
       getMiniflareBindings() as any,
       {} as any,
-      "test"
+      "test",
+      "mainnet"
     );
     const { message } = await response.json();
 
@@ -195,7 +199,7 @@ describe("put", () => {
 
     const dataURL = "data:image/jpeg;base64,test123123";
 
-    const request = new Request("http://localhost/test", {
+    const request = new Request("http://localhost/mainnet/test", {
       body: JSON.stringify({
         expiry,
         dataURL,
@@ -208,7 +212,8 @@ describe("put", () => {
       request,
       getMiniflareBindings() as any,
       {} as any,
-      "test"
+      "test",
+      "mainnet"
     );
     const { message } = await response.json();
 

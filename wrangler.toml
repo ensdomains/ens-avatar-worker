@@ -4,6 +4,12 @@ compatibility_date = "2022-07-31"
 
 node_compat = true
 
+[vars]
+BASE_WEB3_ENDPOINT = "https://web3.ens.domains/v1"
+SUPPORTED_NETWORKS = ["mainnet", "goerli", "rinkeby"]
+REGISTRY_ADDRESS = "0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e"
+
+
 [[r2_buckets]]
 binding = "AVATAR_BUCKET"
 bucket_name = 'avatar-storage'

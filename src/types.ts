@@ -10,7 +10,8 @@ export interface Env {
   AVATAR_BUCKET: R2Bucket;
 
   // vars
-  WEB3_ENDPOINT: string;
+  BASE_WEB3_ENDPOINT: string;
+  SUPPORTED_NETWORKS: string;
   REGISTRY_ADDRESS: string;
 }
 

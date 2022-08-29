@@ -1,7 +1,6 @@
 import { Miniflare } from "miniflare";
 
 const mf = new Miniflare({
-  envPath: true,
   packagePath: true,
   wranglerConfigPath: true,
   buildCommand:
@@ -11,29 +10,43 @@ const mf = new Miniflare({
 });
 
 describe("index", () => {
-  it("should throw error if no name supplied", async () => {
+  it("should throw error if no network supplied", async () => {
     const response = await mf.dispatchFetch("http://localhost/");
+    const { message } = await response.json();
+
+    expect(message).toBe("Network not supported");
+    expect(response.status).toBe(400);
+  });
+  it("should throw error if network not supported", async () => {
+    const response = await mf.dispatchFetch("http://localhost/test");
+    const { message } = await response.json();
+
+    expect(message).toBe("Network not supported");
+    expect(response.status).toBe(400);
+  });
+  it("should throw error if no name supplied", async () => {
+    const response = await mf.dispatchFetch("http://localhost/mainnet");
     const { message } = await response.json();
 
     expect(message).toBe("Missing name parameter");
     expect(response.status).toBe(400);
   });
   it("should use put handler for put request", async () => {
-    const response = await mf.dispatchFetch("http://localhost/test", {
+    const response = await mf.dispatchFetch("http://localhost/mainnet/test", {
       method: "PUT",
     });
     const { message } = await response.json();
     expect(message).toBe("put");
   });
   it("should use get handler for get request", async () => {
-    const response = await mf.dispatchFetch("http://localhost/test", {
+    const response = await mf.dispatchFetch("http://localhost/mainnet/test", {
       method: "GET",
     });
     const { message } = await response.json();
     expect(message).toBe("get");
   });
   it("should return options for options request", async () => {
-    const response = await mf.dispatchFetch("http://localhost/test", {
+    const response = await mf.dispatchFetch("http://localhost/mainnet/test", {
       method: "OPTIONS",
     });
     expect(response.status).toBe(200);
@@ -46,7 +59,7 @@ describe("index", () => {
     );
   });
   it("should throw error if unsupported method", async () => {
-    const response = await mf.dispatchFetch("http://localhost/test", {
+    const response = await mf.dispatchFetch("http://localhost/mainnet/test", {
       method: "POST",
     });
     const { message } = await response.json();

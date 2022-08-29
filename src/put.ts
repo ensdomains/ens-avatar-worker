@@ -47,9 +47,13 @@ export default async (
   request: Request,
   env: Env,
   ctx: ExecutionContext,
-  name: string
+  name: string,
+  network: string
 ): Promise<Response> => {
-  const handleFetch = _handleFetch(env.REGISTRY_ADDRESS, env.WEB3_ENDPOINT);
+  const handleFetch = _handleFetch(
+    env.REGISTRY_ADDRESS,
+    env.BASE_WEB3_ENDPOINT + "/" + network
+  );
   const { expiry, dataURL, sig } = (await request.json()) as AvatarUploadParams;
   const { mime, bytes } = dataURLToBytes(dataURL);
   const hash = sha256(bytes);

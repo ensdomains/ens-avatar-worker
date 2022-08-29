@@ -12,17 +12,18 @@ describe("get", () => {
       request,
       getMiniflareBindings() as any,
       {} as any,
-      "test"
+      "test",
+      "mainnet"
     );
     const { message } = await response.json();
 
-    expect(message).toBe("test not found");
+    expect(message).toBe("test not found on mainnet");
     expect(response.status).toBe(404);
   });
   it("returns file if found", async () => {
     const request = new Request("http://localhost/test");
     const AVATAR_BUCKET = getMiniflareBindings().AVATAR_BUCKET;
-    await AVATAR_BUCKET.put("test", new ArrayBuffer(12), {
+    await AVATAR_BUCKET.put("mainnet-test", new ArrayBuffer(12), {
       httpMetadata: {
         contentType: "image/png",
       },
@@ -32,7 +33,8 @@ describe("get", () => {
       request,
       getMiniflareBindings() as any,
       {} as any,
-      "test"
+      "test",
+      "mainnet"
     );
 
     expect(await response.arrayBuffer()).toEqual(new ArrayBuffer(12));

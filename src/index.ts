@@ -19,8 +19,14 @@ export default {
     env: Env,
     ctx: ExecutionContext
   ): Promise<Response> {
+    const networks = env.SUPPORTED_NETWORKS.split(",");
     const url = new URL(request.url);
-    const name = url.pathname.split("/").pop();
+    const network = url.pathname.split("/")[1];
+    const name = url.pathname.split("/")[2];
+
+    if (!network || !networks.includes(network)) {
+      return makeResponse("Network not supported", 400);
+    }
 
     if (!name) {
       return makeResponse("Missing name parameter", 400);
@@ -28,10 +34,10 @@ export default {
 
     switch (request.method) {
       case "PUT": {
-        return onRequestPut(request, env, ctx, name);
+        return onRequestPut(request, env, ctx, name, network);
       }
       case "GET": {
-        return onRequestGet(request, env, ctx, name);
+        return onRequestGet(request, env, ctx, name, network);
       }
       case "OPTIONS": {
         return makeResponse(null);

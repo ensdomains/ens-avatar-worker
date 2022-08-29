@@ -5,11 +5,12 @@ export default async (
   request: Request,
   env: Env,
   ctx: ExecutionContext,
-  name: string
+  name: string,
+  network: string
 ) => {
-  const file = await env.AVATAR_BUCKET.get(name);
+  const file = await env.AVATAR_BUCKET.get(`${network}-${name}`);
   if (!file) {
-    return makeResponse(`${name} not found`, 404);
+    return makeResponse(`${name} not found on ${network}`, 404);
   }
 
   return makeResponse(file.body, 200, {
