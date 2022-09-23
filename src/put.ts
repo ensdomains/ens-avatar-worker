@@ -96,7 +96,10 @@ export default async (
     return makeResponse(`Image is too large`, 413);
   }
 
-  if (verifiedAddress !== owner) {
+  if (
+    verifiedAddress !== owner &&
+    owner !== "0x0000000000000000000000000000000000000000"
+  ) {
     return makeResponse(
       `Address ${verifiedAddress} is not the owner of ${name}`,
       403
