@@ -122,7 +122,7 @@ describe("put", () => {
         JSON.stringify({
           result: defaultAbiCoder.encode(
             ["address"],
-            ["0x0000000000000000000000000000000000000000"]
+            ["0x0000000000000000000000000000000000000001"]
           ),
         })
       );
@@ -187,6 +187,46 @@ describe("put", () => {
 
     expect(message).toBe("Signature expired");
     expect(response.status).toBe(403);
+  });
+  it("uploads image if owner is 0x0", async () => {
+    j.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      return new Response(
+        JSON.stringify({
+          result: defaultAbiCoder.encode(
+            ["address"],
+            ["0x0000000000000000000000000000000000000000"]
+          ),
+        })
+      );
+    });
+
+    const dataURL = "data:image/jpeg;base64,test123123";
+
+    const request = new Request("http://localhost/mainnet/test", {
+      body: JSON.stringify({
+        expiry,
+        dataURL,
+        sig: await makeSig(dataURL),
+      }),
+      method: "PUT",
+    });
+
+    const response = await onRequestPut(
+      request,
+      getMiniflareBindings() as any,
+      {} as any,
+      "test",
+      "mainnet"
+    );
+    const { message } = await response.json();
+
+    expect(message).toBe("uploaded");
+    expect(response.status).toBe(200);
+
+    const AVATAR_BUCKET = getMiniflareBindings().AVATAR_BUCKET;
+    const result = await AVATAR_BUCKET.get("test");
+    const buffer = await result!.arrayBuffer();
+    expect(buffer).toEqual(dataURLToBytes(dataURL).bytes.buffer);
   });
   it("uploads image if checks pass", async () => {
     j.spyOn(globalThis, "fetch").mockImplementation(async () => {
