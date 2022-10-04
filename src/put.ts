@@ -8,8 +8,9 @@ import { makeResponse } from "./helpers";
 import { AvatarUploadParams, Env } from "./types";
 
 const _handleFetch =
-  (registryAddress: string, endpoint: string) =>
+  (endpoint: string) =>
   async (
+    to: string,
     data: string
   ): Promise<{
     jsonrpc: string;
@@ -26,7 +27,7 @@ const _handleFetch =
         method: "eth_call",
         params: [
           {
-            to: registryAddress,
+            to,
             data,
           },
           "latest",
@@ -50,10 +51,7 @@ export default async (
   name: string,
   network: string
 ): Promise<Response> => {
-  const handleFetch = _handleFetch(
-    env.REGISTRY_ADDRESS,
-    env.BASE_WEB3_ENDPOINT + "/" + network
-  );
+  const handleFetch = _handleFetch(env.BASE_WEB3_ENDPOINT + "/" + network);
   const { expiry, dataURL, sig } = (await request.json()) as AvatarUploadParams;
   const { mime, bytes } = dataURLToBytes(dataURL);
   const hash = sha256(bytes);
@@ -80,20 +78,39 @@ export default async (
     sig
   );
 
+  const maxSize = 1024 * 512;
+
+  if (bytes.byteLength > maxSize) {
+    return makeResponse(`Image is too large`, 413);
+  }
+
   let owner: string;
   try {
     const nameHash = namehash(name);
-    const ownerData = await handleFetch("0x02571be3" + nameHash.substring(2));
+    const ownerData = await handleFetch(
+      env.REGISTRY_ADDRESS,
+      "0x02571be3" + nameHash.substring(2)
+    );
     const [_owner] = defaultAbiCoder.decode(["address"], ownerData.result);
     owner = _owner;
   } catch {
     return makeResponse(`${name} not found`, 404);
   }
 
-  const maxSize = 1024 * 512;
+  const wrapperAddress = JSON.parse(env.WRAPPER_ADDRESS)[network];
 
-  if (bytes.byteLength > maxSize) {
-    return makeResponse(`Image is too large`, 413);
+  if (owner === wrapperAddress) {
+    try {
+      const nameHash = namehash(name);
+      const ownerData = await handleFetch(
+        wrapperAddress,
+        "0x6352211e" + nameHash.substring(2)
+      );
+      const [_owner] = defaultAbiCoder.decode(["address"], ownerData.result);
+      owner = _owner;
+    } catch {
+      return makeResponse(`${name} not found`, 404);
+    }
   }
 
   if (
@@ -111,10 +128,10 @@ export default async (
   }
 
   const bucket = env.AVATAR_BUCKET;
-  const uploaded = await bucket.put(name, bytes, {
+  const uploaded = await bucket.put(`${network}-${name}`, bytes, {
     httpMetadata: { contentType: mime },
   });
-  if (uploaded.key === name) {
+  if (uploaded.key === `${network}-${name}`) {
     return makeResponse("uploaded", 200);
   } else {
     return makeResponse(`${name} not uploaded`, 500);

@@ -224,7 +224,7 @@ describe("put", () => {
     expect(response.status).toBe(200);
 
     const AVATAR_BUCKET = getMiniflareBindings().AVATAR_BUCKET;
-    const result = await AVATAR_BUCKET.get("test");
+    const result = await AVATAR_BUCKET.get("mainnet-test");
     const buffer = await result!.arrayBuffer();
     expect(buffer).toEqual(dataURLToBytes(dataURL).bytes.buffer);
   });
@@ -261,7 +261,49 @@ describe("put", () => {
     expect(response.status).toBe(200);
 
     const AVATAR_BUCKET = getMiniflareBindings().AVATAR_BUCKET;
-    const result = await AVATAR_BUCKET.get("test");
+    const result = await AVATAR_BUCKET.get("mainnet-test");
+    const buffer = await result!.arrayBuffer();
+    expect(buffer).toEqual(dataURLToBytes(dataURL).bytes.buffer);
+  });
+  it("uploads image if checks pass on namewrapper", async () => {
+    let returned = 0;
+    j.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      const returnAddr = returned
+        ? walletAddress
+        : "0x9c4C40960B53e9A01af429D3f90aEf02Bd0c4c72";
+      returned++;
+      return new Response(
+        JSON.stringify({
+          result: defaultAbiCoder.encode(["address"], [returnAddr]),
+        })
+      );
+    });
+
+    const dataURL = "data:image/jpeg;base64,test123123";
+
+    const request = new Request("http://localhost/mainnet/test", {
+      body: JSON.stringify({
+        expiry,
+        dataURL,
+        sig: await makeSig(dataURL),
+      }),
+      method: "PUT",
+    });
+
+    const response = await onRequestPut(
+      request,
+      getMiniflareBindings() as any,
+      {} as any,
+      "test",
+      "goerli"
+    );
+    const { message } = await response.json();
+
+    expect(message).toBe("uploaded");
+    expect(response.status).toBe(200);
+
+    const AVATAR_BUCKET = getMiniflareBindings().AVATAR_BUCKET;
+    const result = await AVATAR_BUCKET.get("goerli-test");
     const buffer = await result!.arrayBuffer();
     expect(buffer).toEqual(dataURLToBytes(dataURL).bytes.buffer);
   });
