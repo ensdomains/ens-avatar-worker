@@ -19,7 +19,7 @@ export default {
     env: Env,
     ctx: ExecutionContext
   ): Promise<Response> {
-    const networks = env.SUPPORTED_NETWORKS.split(",");
+    const networks = env.SUPPORTED_NETWORKS;
     const url = new URL(request.url);
     const network = url.pathname.split("/")[1];
     const name = url.pathname.split("/")[2];

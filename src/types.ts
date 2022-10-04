@@ -11,7 +11,7 @@ export interface Env {
 
   // vars
   BASE_WEB3_ENDPOINT: string;
-  SUPPORTED_NETWORKS: string;
+  SUPPORTED_NETWORKS: string[];
   REGISTRY_ADDRESS: string;
 }
 
