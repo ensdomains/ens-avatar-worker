@@ -8,7 +8,7 @@ node_compat = true
 BASE_WEB3_ENDPOINT = "https://web3.ens.domains/v1"
 SUPPORTED_NETWORKS = ["mainnet", "goerli", "ropsten"]
 REGISTRY_ADDRESS = "0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e"
-WRAPPER_ADDRESS = '{ "mainnet": "", "goerli": "0x9c4C40960B53e9A01af429D3f90aEf02Bd0c4c72", "ropsten": "0xF82155e2a43Be0871821E9654Fc8Ae894FB8307C" }'
+WRAPPER_ADDRESS = '{ "mainnet": "", "goerli": "0x582224b8d4534F4749EFA4f22eF7241E0C56D4B8", "ropsten": "0xF82155e2a43Be0871821E9654Fc8Ae894FB8307C" }'
 
 
 [[r2_buckets]]
