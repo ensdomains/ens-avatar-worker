@@ -39,6 +39,9 @@ export default {
       case "GET": {
         return onRequestGet(request, env, ctx, name, network);
       }
+      case "HEAD": {
+        return onRequestGet(request, env, ctx, name, network, true);
+      }
       case "OPTIONS": {
         return makeResponse(null);
       }
