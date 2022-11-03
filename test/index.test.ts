@@ -1,4 +1,5 @@
 import { Miniflare } from "miniflare";
+import { ResObj } from "./test-utils";
 
 const mf = new Miniflare({
   packagePath: true,
@@ -12,21 +13,21 @@ const mf = new Miniflare({
 describe("index", () => {
   it("should throw error if no network supplied", async () => {
     const response = await mf.dispatchFetch("http://localhost/");
-    const { message } = await response.json();
+    const { message } = await response.json<ResObj>();
 
     expect(message).toBe("Network not supported");
     expect(response.status).toBe(400);
   });
   it("should throw error if network not supported", async () => {
     const response = await mf.dispatchFetch("http://localhost/test");
-    const { message } = await response.json();
+    const { message } = await response.json<ResObj>();
 
     expect(message).toBe("Network not supported");
     expect(response.status).toBe(400);
   });
   it("should throw error if no name supplied", async () => {
     const response = await mf.dispatchFetch("http://localhost/mainnet");
-    const { message } = await response.json();
+    const { message } = await response.json<ResObj>();
 
     expect(message).toBe("Missing name parameter");
     expect(response.status).toBe(400);
@@ -35,14 +36,14 @@ describe("index", () => {
     const response = await mf.dispatchFetch("http://localhost/mainnet/test", {
       method: "PUT",
     });
-    const { message } = await response.json();
+    const { message } = await response.json<ResObj>();
     expect(message).toBe("put");
   });
   it("should use get handler for get request", async () => {
     const response = await mf.dispatchFetch("http://localhost/mainnet/test", {
       method: "GET",
     });
-    const { message } = await response.json();
+    const { message } = await response.json<ResObj>();
     expect(message).toBe("get");
   });
   it("should return options for options request", async () => {
@@ -62,7 +63,7 @@ describe("index", () => {
     const response = await mf.dispatchFetch("http://localhost/mainnet/test", {
       method: "POST",
     });
-    const { message } = await response.json();
+    const { message } = await response.json<ResObj>();
     expect(message).toBe("Unsupported method: POST");
     expect(response.status).toBe(405);
   });

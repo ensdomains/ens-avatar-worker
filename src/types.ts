@@ -14,6 +14,8 @@ export interface Env {
   SUPPORTED_NETWORKS: string[];
   REGISTRY_ADDRESS: string;
   WRAPPER_ADDRESS: string;
+  MULTICALL_ADDRESS: string;
+  BASE_REGISTRAR_ADDRESS: string;
 }
 
 export type AvatarUploadParams = {

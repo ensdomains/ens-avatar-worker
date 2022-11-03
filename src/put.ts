@@ -1,41 +1,7 @@
-import {
-  defaultAbiCoder,
-  namehash,
-  sha256,
-  verifyTypedData,
-} from "ethers/lib/utils";
+import { sha256, verifyTypedData } from "ethers/lib/utils";
 import { makeResponse } from "./helpers";
 import { AvatarUploadParams, Env } from "./types";
-
-const _handleFetch =
-  (endpoint: string) =>
-  async (
-    to: string,
-    data: string
-  ): Promise<{
-    jsonrpc: string;
-    result: string;
-    id: number;
-  }> => {
-    return await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        method: "eth_call",
-        params: [
-          {
-            to,
-            data,
-          },
-          "latest",
-        ],
-        id: 1,
-      }),
-    }).then((res) => res.json());
-  };
+import { EMPTY_ADDRESS, getOwnersAndAvailable } from "./utils";
 
 const dataURLToBytes = (dataURL: string) => {
   const base64 = dataURL.split(",")[1];
@@ -51,7 +17,6 @@ export default async (
   name: string,
   network: string
 ): Promise<Response> => {
-  const handleFetch = _handleFetch(env.BASE_WEB3_ENDPOINT + "/" + network);
   const { expiry, dataURL, sig } = (await request.json()) as AvatarUploadParams;
   const { mime, bytes } = dataURLToBytes(dataURL);
   const hash = sha256(bytes);
@@ -84,43 +49,17 @@ export default async (
     return makeResponse(`Image is too large`, 413);
   }
 
-  let owner: string;
-  try {
-    const nameHash = namehash(name);
-    const ownerData = await handleFetch(
-      env.REGISTRY_ADDRESS,
-      "0x02571be3" + nameHash.substring(2)
-    );
-    const [_owner] = defaultAbiCoder.decode(["address"], ownerData.result);
-    owner = _owner;
-  } catch {
-    return makeResponse(`${name} not found`, 404);
-  }
+  const { available, owner } = await getOwnersAndAvailable(env, network, name);
 
-  const wrapperAddress = JSON.parse(env.WRAPPER_ADDRESS)[network];
-
-  if (owner === wrapperAddress) {
-    try {
-      const nameHash = namehash(name);
-      const ownerData = await handleFetch(
-        wrapperAddress,
-        "0x6352211e" + nameHash.substring(2)
+  if (!available) {
+    if (owner === EMPTY_ADDRESS) {
+      return makeResponse(`Name not found`, 404);
+    } else if (verifiedAddress !== owner) {
+      return makeResponse(
+        `Address ${verifiedAddress} is not the owner of ${name}`,
+        403
       );
-      const [_owner] = defaultAbiCoder.decode(["address"], ownerData.result);
-      owner = _owner;
-    } catch {
-      return makeResponse(`${name} not found`, 404);
     }
-  }
-
-  if (
-    verifiedAddress !== owner &&
-    owner !== "0x0000000000000000000000000000000000000000"
-  ) {
-    return makeResponse(
-      `Address ${verifiedAddress} is not the owner of ${name}`,
-      403
-    );
   }
 
   if (parseInt(expiry) < Date.now()) {
@@ -128,10 +67,15 @@ export default async (
   }
 
   const bucket = env.AVATAR_BUCKET;
-  const uploaded = await bucket.put(`${network}-${name}`, bytes, {
+  const key = available
+    ? `${network}/unregistered/${name}/${verifiedAddress}`
+    : `${network}/registered/${name}`;
+
+  const uploaded = await bucket.put(key, bytes, {
     httpMetadata: { contentType: mime },
   });
-  if (uploaded.key === `${network}-${name}`) {
+
+  if (uploaded.key === key) {
     return makeResponse("uploaded", 200);
   } else {
     return makeResponse(`${name} not uploaded`, 500);
