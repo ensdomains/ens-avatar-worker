@@ -6,8 +6,8 @@
     "@cloudflare/workers-types": "^3.18.0",
     "@types/jest": "^28.1.6",
     "jest": "^28.1.3",
-    "jest-environment-miniflare": "^2.6.0",
-    "miniflare": "^2.6.0",
+    "jest-environment-miniflare": "^2.11.0",
+    "miniflare": "^2.11.0",
     "ts-jest": "^28.0.7",
     "typescript": "^4.7.4",
     "wrangler": "2.0.7"
@@ -23,7 +23,7 @@
   },
   "pnpm": {
     "patchedDependencies": {
-      "jest-environment-miniflare@2.6.0": "patches/jest-environment-miniflare@2.6.0.patch"
+      "@miniflare/r2@2.11.0": "patches/@miniflare__r2@2.11.0.patch"
     }
   }
 }

@@ -52,11 +52,12 @@ export const _handleFetch =
 export const getOwnersAndAvailable = async (
   env: Env,
   network: string,
-  labels: string[]
+  name: string
 ) => {
   const handleFetch = _handleFetch(env.BASE_WEB3_ENDPOINT + "/" + network);
   const wrapperAddress = JSON.parse(env.WRAPPER_ADDRESS)[network];
 
+  const labels = name.split(".");
   const nameHash = namehash(labels.join("."));
   const labelHash = solidityKeccak256(["string"], [labels[0]]);
   const isDotETH2ld = labels.length === 2 && labels[1] === "eth";
@@ -98,8 +99,6 @@ export const getOwnersAndAvailable = async (
   }
 
   let owner = EMPTY_ADDRESS;
-
-  console.log(registryOwner, nameWrapperOwner);
 
   if (registryOwner === wrapperAddress) {
     owner = nameWrapperOwner;

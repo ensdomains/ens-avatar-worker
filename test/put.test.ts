@@ -1,11 +1,13 @@
 /**
  * @jest-environment miniflare
- * @jest-environment-options {"modules":"true","r2Buckets":["AVATAR_BUCKET"],"bindings":{"REGISTRY_ADDRESS":"0x123","WEB3_ENDPOINT":"http://localhost/"}}
+ * @jest-environment-options {"modules":"true","r2Buckets":["AVATAR_BUCKET"],"bindings":{"WEB3_ENDPOINT":"http://localhost/","REGISTRY_ADDRESS":"0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e","WRAPPER_ADDRESS":"{ \"mainnet\": \"0x582224b8d4534F4749EFA4f22eF7241E0C56D4B8\" }"}}
  */
 
 import onRequestPut from "@/put";
+import { EMPTY_ADDRESS } from "@/utils";
 import { Wallet } from "ethers";
-import { defaultAbiCoder, sha256 } from "ethers/lib/utils";
+import { sha256 } from "ethers/lib/utils";
+import { mockOwnersAvailability, ResObj } from "./test-utils";
 
 const j = (import.meta as any).jest as typeof jest;
 
@@ -20,7 +22,7 @@ const wallet = Wallet.fromMnemonic(
   "test test test test test test test test test test test junk"
 );
 const expiry = String(Date.now() + 100000);
-const name = "test";
+const name = "test.eth";
 
 const walletAddress = wallet.address;
 const _makeSig = (obj: Record<string, string>) =>
@@ -52,13 +54,13 @@ const makeSig = (dataURL: string) =>
   makeSigWithHash(sha256(dataURLToBytes(dataURL).bytes));
 
 describe("put", () => {
-  it("returns not found if there is an error", async () => {
-    j.spyOn(globalThis, "fetch").mockImplementation((() => {
-      new Error("test");
-    }) as any);
+  it("throws error if fetch returns error", async () => {
+    j.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      return new Response("{}", { status: 500 });
+    });
     const dataURL = "data:image/jpeg;base64,test123123";
 
-    const request = new Request("http://localhost/mainnet/test", {
+    const request = new Request("http://localhost/mainnet/test.eth", {
       body: JSON.stringify({
         expiry,
         dataURL,
@@ -67,26 +69,21 @@ describe("put", () => {
       method: "PUT",
     });
 
-    const response = await onRequestPut(
-      request,
-      getMiniflareBindings() as any,
-      {} as any,
-      "test",
-      "mainnet"
-    );
-    const { message } = await response.json();
-
-    expect(message).toBe("test not found");
-    expect(response.status).toBe(404);
+    try {
+      await onRequestPut(
+        request,
+        getMiniflareBindings() as any,
+        {} as any,
+        name,
+        "mainnet"
+      );
+      expect(false).toBeTruthy();
+    } catch (e) {
+      expect(e).toBeDefined();
+    }
   });
   it("returns error if image is too large", async () => {
-    j.spyOn(globalThis, "fetch").mockImplementation(async () => {
-      return new Response(
-        JSON.stringify({
-          result: defaultAbiCoder.encode(["address"], [walletAddress]),
-        })
-      );
-    });
+    mockOwnersAvailability(walletAddress, EMPTY_ADDRESS, true, false);
 
     const dataURL =
       "data:image/jpeg;base64," +
@@ -95,7 +92,7 @@ describe("put", () => {
         .map(() => Math.floor(Math.random() * 256).toString(16))
         .join("");
 
-    const request = new Request("http://localhost/mainnet/test", {
+    const request = new Request("http://localhost/mainnet/test.eth", {
       body: JSON.stringify({
         expiry,
         dataURL,
@@ -108,29 +105,25 @@ describe("put", () => {
       request,
       getMiniflareBindings() as any,
       {} as any,
-      "test",
+      name,
       "mainnet"
     );
-    const { message } = await response.json();
+    const { message } = await response.json<ResObj>();
 
     expect(message).toBe("Image is too large");
     expect(response.status).toBe(413);
   });
   it("returns error if owner is not name owner", async () => {
-    j.spyOn(globalThis, "fetch").mockImplementation(async () => {
-      return new Response(
-        JSON.stringify({
-          result: defaultAbiCoder.encode(
-            ["address"],
-            ["0x0000000000000000000000000000000000000001"]
-          ),
-        })
-      );
-    });
+    mockOwnersAvailability(
+      "0x0000000000000000000000000000000000000001",
+      EMPTY_ADDRESS,
+      true,
+      false
+    );
 
     const dataURL = "data:image/jpeg;base64,test123123";
 
-    const request = new Request("http://localhost/mainnet/test", {
+    const request = new Request("http://localhost/mainnet/test.eth", {
       body: JSON.stringify({
         expiry,
         dataURL,
@@ -143,33 +136,29 @@ describe("put", () => {
       request,
       getMiniflareBindings() as any,
       {} as any,
-      "test",
+      name,
       "mainnet"
     );
-    const { message } = await response.json();
+    const { message } = await response.json<ResObj>();
 
-    expect(message).toBe(`Address ${walletAddress} is not the owner of test`);
+    expect(message).toBe(
+      `Address ${walletAddress} is not the owner of test.eth`
+    );
     expect(response.status).toBe(403);
   });
   it("returns error if signature has expired", async () => {
-    j.spyOn(globalThis, "fetch").mockImplementation(async () => {
-      return new Response(
-        JSON.stringify({
-          result: defaultAbiCoder.encode(["address"], [walletAddress]),
-        })
-      );
-    });
+    mockOwnersAvailability(walletAddress, EMPTY_ADDRESS, true, false);
 
     const dataURL = "data:image/jpeg;base64,test123123";
 
-    const request = new Request("http://localhost/mainnet/test", {
+    const request = new Request("http://localhost/mainnet/test.eth", {
       body: JSON.stringify({
         expiry: "1",
         dataURL,
         sig: await _makeSig({
           upload: "avatar",
           expiry: "1",
-          name: "test",
+          name: "test.eth",
           hash: sha256(dataURLToBytes(dataURL).bytes),
         }),
       }),
@@ -180,29 +169,20 @@ describe("put", () => {
       request,
       getMiniflareBindings() as any,
       {} as any,
-      "test",
+      name,
       "mainnet"
     );
-    const { message } = await response.json();
+    const { message } = await response.json<ResObj>();
 
     expect(message).toBe("Signature expired");
     expect(response.status).toBe(403);
   });
-  it("uploads image if owner is 0x0", async () => {
-    j.spyOn(globalThis, "fetch").mockImplementation(async () => {
-      return new Response(
-        JSON.stringify({
-          result: defaultAbiCoder.encode(
-            ["address"],
-            ["0x0000000000000000000000000000000000000000"]
-          ),
-        })
-      );
-    });
+  it("uploads image if name is available", async () => {
+    mockOwnersAvailability(EMPTY_ADDRESS, EMPTY_ADDRESS, true, true);
 
     const dataURL = "data:image/jpeg;base64,test123123";
 
-    const request = new Request("http://localhost/mainnet/test", {
+    const request = new Request("http://localhost/mainnet/test.eth", {
       body: JSON.stringify({
         expiry,
         dataURL,
@@ -215,31 +195,27 @@ describe("put", () => {
       request,
       getMiniflareBindings() as any,
       {} as any,
-      "test",
+      name,
       "mainnet"
     );
-    const { message } = await response.json();
+    const { message } = await response.json<ResObj>();
 
     expect(message).toBe("uploaded");
     expect(response.status).toBe(200);
 
     const AVATAR_BUCKET = getMiniflareBindings().AVATAR_BUCKET;
-    const result = await AVATAR_BUCKET.get("mainnet-test");
+    const result = await AVATAR_BUCKET.get(
+      "mainnet/unregistered/test.eth/" + walletAddress
+    );
     const buffer = await result!.arrayBuffer();
     expect(buffer).toEqual(dataURLToBytes(dataURL).bytes.buffer);
   });
   it("uploads image if checks pass", async () => {
-    j.spyOn(globalThis, "fetch").mockImplementation(async () => {
-      return new Response(
-        JSON.stringify({
-          result: defaultAbiCoder.encode(["address"], [walletAddress]),
-        })
-      );
-    });
+    mockOwnersAvailability(walletAddress, EMPTY_ADDRESS, true, false);
 
     const dataURL = "data:image/jpeg;base64,test123123";
 
-    const request = new Request("http://localhost/mainnet/test", {
+    const request = new Request("http://localhost/mainnet/test.eth", {
       body: JSON.stringify({
         expiry,
         dataURL,
@@ -252,58 +228,16 @@ describe("put", () => {
       request,
       getMiniflareBindings() as any,
       {} as any,
-      "test",
+      name,
       "mainnet"
     );
-    const { message } = await response.json();
+    const { message } = await response.json<ResObj>();
 
     expect(message).toBe("uploaded");
     expect(response.status).toBe(200);
 
     const AVATAR_BUCKET = getMiniflareBindings().AVATAR_BUCKET;
-    const result = await AVATAR_BUCKET.get("mainnet-test");
-    const buffer = await result!.arrayBuffer();
-    expect(buffer).toEqual(dataURLToBytes(dataURL).bytes.buffer);
-  });
-  it("uploads image if checks pass on namewrapper", async () => {
-    let returned = 0;
-    j.spyOn(globalThis, "fetch").mockImplementation(async () => {
-      const returnAddr = returned
-        ? walletAddress
-        : "0x9c4C40960B53e9A01af429D3f90aEf02Bd0c4c72";
-      returned++;
-      return new Response(
-        JSON.stringify({
-          result: defaultAbiCoder.encode(["address"], [returnAddr]),
-        })
-      );
-    });
-
-    const dataURL = "data:image/jpeg;base64,test123123";
-
-    const request = new Request("http://localhost/mainnet/test", {
-      body: JSON.stringify({
-        expiry,
-        dataURL,
-        sig: await makeSig(dataURL),
-      }),
-      method: "PUT",
-    });
-
-    const response = await onRequestPut(
-      request,
-      getMiniflareBindings() as any,
-      {} as any,
-      "test",
-      "goerli"
-    );
-    const { message } = await response.json();
-
-    expect(message).toBe("uploaded");
-    expect(response.status).toBe(200);
-
-    const AVATAR_BUCKET = getMiniflareBindings().AVATAR_BUCKET;
-    const result = await AVATAR_BUCKET.get("goerli-test");
+    const result = await AVATAR_BUCKET.get("mainnet/registered/test.eth");
     const buffer = await result!.arrayBuffer();
     expect(buffer).toEqual(dataURLToBytes(dataURL).bytes.buffer);
   });

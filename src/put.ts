@@ -49,13 +49,7 @@ export default async (
     return makeResponse(`Image is too large`, 413);
   }
 
-  const labels = name.split(".");
-
-  const { available, owner } = await getOwnersAndAvailable(
-    env,
-    network,
-    labels
-  );
+  const { available, owner } = await getOwnersAndAvailable(env, network, name);
 
   if (!available) {
     if (owner === EMPTY_ADDRESS) {
