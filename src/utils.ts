@@ -1,4 +1,5 @@
-import { Interface, namehash, solidityKeccak256 } from "ethers/lib/utils";
+import namehash from '@ensdomains/eth-ens-namehash';
+import { Interface, keccak256, toUtf8Bytes } from "ethers/lib/utils";
 import { Env } from "./types";
 
 export const EMPTY_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -58,8 +59,8 @@ export const getOwnersAndAvailable = async (
   const wrapperAddress = JSON.parse(env.WRAPPER_ADDRESS)[network];
 
   const labels = name.split(".");
-  const nameHash = namehash(labels.join("."));
-  const labelHash = solidityKeccak256(["string"], [labels[0]]);
+  const nameHash = namehash.hash(name);
+  const labelHash = keccak256(toUtf8Bytes(labels[0]));
   const isDotETH2ld = labels.length === 2 && labels[1] === "eth";
 
   const calls: [string, string][] = [

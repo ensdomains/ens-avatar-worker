@@ -17,7 +17,7 @@ export default async (
     const { owner, available } = await getOwnersAndAvailable(
       env,
       network,
-      name
+      decodeURIComponent(name)
     );
 
     if (!available && owner !== EMPTY_ADDRESS) {
