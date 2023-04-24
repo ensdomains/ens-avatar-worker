@@ -21,8 +21,13 @@ export default {
   ): Promise<Response> {
     const networks = env.SUPPORTED_NETWORKS;
     const url = new URL(request.url);
-    const network = url.pathname.split("/")[1];
-    const name = url.pathname.split("/")[2];
+    let network = url.pathname.split("/")[1];
+    let name = url.pathname.split("/")[2];
+
+    if (!name) {
+      name = network;
+      network = "mainnet";
+    }
 
     if (!network || !networks.includes(network)) {
       return makeResponse("Network not supported", 400);
