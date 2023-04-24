@@ -11,26 +11,18 @@ const mf = new Miniflare({
 });
 
 describe("index", () => {
-  it("should throw error if no network supplied", async () => {
-    const response = await mf.dispatchFetch("http://localhost/");
-    const { message } = await response.json<ResObj>();
-
-    expect(message).toBe("Network not supported");
-    expect(response.status).toBe(400);
-  });
-  it("should throw error if network not supported", async () => {
-    const response = await mf.dispatchFetch("http://localhost/test");
-    const { message } = await response.json<ResObj>();
-
-    expect(message).toBe("Network not supported");
-    expect(response.status).toBe(400);
-  });
   it("should throw error if no name supplied", async () => {
-    const response = await mf.dispatchFetch("http://localhost/mainnet");
+    const response = await mf.dispatchFetch("http://localhost/");
     const { message } = await response.json<ResObj>();
 
     expect(message).toBe("Missing name parameter");
     expect(response.status).toBe(400);
+  });
+  it("should assume network is mainnet if no second path", async () => {
+    const response = await mf.dispatchFetch("http://localhost/test");
+
+    const { message } = await response.json<ResObj>();
+    expect(message).toBe("get");
   });
   it("should use put handler for put request", async () => {
     const response = await mf.dispatchFetch("http://localhost/mainnet/test", {
