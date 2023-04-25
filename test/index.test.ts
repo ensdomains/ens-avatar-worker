@@ -38,6 +38,26 @@ describe("index", () => {
     const { message } = await response.json<ResObj>();
     expect(message).toBe("get");
   });
+  it("should send decoded name to put handler", async () => {
+    const response = await mf.dispatchFetch(
+      "http://localhost/mainnet/with-apostrophe%E2%80%99s.eth",
+      {
+        method: "PUT",
+      }
+    );
+    const { name } = await response.json<ResObj>();
+    expect(name).toBe("with-apostrophe’s.eth");
+  });
+  it("should send decoded name to get handler", async () => {
+    const response = await mf.dispatchFetch(
+      "http://localhost/mainnet/with-apostrophe%E2%80%99s.eth",
+      {
+        method: "GET",
+      }
+    );
+    const { name } = await response.json<ResObj>();
+    expect(name).toBe("with-apostrophe’s.eth");
+  });
   it("should return options for options request", async () => {
     const response = await mf.dispatchFetch("http://localhost/mainnet/test", {
       method: "OPTIONS",

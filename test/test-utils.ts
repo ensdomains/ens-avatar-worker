@@ -33,4 +33,5 @@ export const mockOwnersAvailability = (
 
 export type ResObj = {
   message: string;
+  name: string;
 };

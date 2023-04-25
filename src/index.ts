@@ -29,6 +29,9 @@ export default {
       network = "mainnet";
     }
 
+    // make sure name is decoded
+    name = decodeURIComponent(name);
+
     if (!network || !networks.includes(network)) {
       return makeResponse("Network not supported", 400);
     }
