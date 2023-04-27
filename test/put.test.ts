@@ -177,6 +177,37 @@ describe("put", () => {
     expect(message).toBe("Signature expired");
     expect(response.status).toBe(403);
   });
+  it('returns error if mime type is not "image/jpeg"', async () => {
+    mockOwnersAvailability(walletAddress, EMPTY_ADDRESS, true, false);
+
+    const dataURL = "data:text/html;base64,test123123";
+
+    const request = new Request("http://localhost/mainnet/test.eth", {
+      body: JSON.stringify({
+        expiry: "1",
+        dataURL,
+        sig: await _makeSig({
+          upload: "avatar",
+          expiry: "1",
+          name: "test.eth",
+          hash: sha256(dataURLToBytes(dataURL).bytes),
+        }),
+      }),
+      method: "PUT",
+    });
+
+    const response = await onRequestPut(
+      request,
+      getMiniflareBindings() as any,
+      {} as any,
+      name,
+      "mainnet"
+    );
+    const { message } = await response.json<ResObj>();
+
+    expect(message).toBe("File must be of type image/jpeg");
+    expect(response.status).toBe(403);
+  });
   it("uploads image if name is available", async () => {
     mockOwnersAvailability(EMPTY_ADDRESS, EMPTY_ADDRESS, true, true);
 

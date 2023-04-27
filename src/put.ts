@@ -21,6 +21,10 @@ export default async (
   const { mime, bytes } = dataURLToBytes(dataURL);
   const hash = sha256(bytes);
 
+  if (mime !== "image/jpeg") {
+    return makeResponse("File must be of type image/jpeg", 403);
+  }
+
   const verifiedAddress = verifyTypedData(
     {
       name: "Ethereum Name Service",
@@ -72,7 +76,7 @@ export default async (
     : `${network}/registered/${name}`;
 
   const uploaded = await bucket.put(key, bytes, {
-    httpMetadata: { contentType: mime },
+    httpMetadata: { contentType: "image/jpeg" },
   });
 
   if (uploaded.key === key) {

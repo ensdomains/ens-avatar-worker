@@ -28,7 +28,7 @@ export default async (
         const [b1, b2] = file.body.tee();
         fileBody = b2;
         await env.AVATAR_BUCKET.put(`${network}/registered/${name}`, b1, {
-          httpMetadata: { contentType: file.httpMetadata!.contentType! },
+          httpMetadata: { contentType: "image/jpeg" },
         });
       }
 
@@ -51,12 +51,12 @@ export default async (
     }
   }
 
-  if (!file) {
+  if (!file || file.httpMetadata?.contentType !== "image/jpeg") {
     return makeResponse(`${name} not found on ${network}`, 404);
   }
 
   return makeResponse(asHead ? undefined : fileBody, 200, {
-    "Content-Type": file.httpMetadata!.contentType!,
+    "Content-Type": "image/jpeg",
     "Content-Length": file.size,
   });
 };
