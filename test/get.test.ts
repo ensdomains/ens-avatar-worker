@@ -7,13 +7,18 @@ import onRequestGet from "@/get";
 import { EMPTY_ADDRESS } from "../src/utils";
 import { mockOwnersAvailability, ResObj } from "./test-utils";
 
-const putBucketItem = (bucket: R2Bucket, name: string, owner?: string) =>
+const putBucketItem = (
+  bucket: R2Bucket,
+  name: string,
+  owner?: string,
+  contentType: string = "image/jpeg"
+) =>
   bucket.put(
     owner
       ? `mainnet/unregistered/${name}/${owner}`
       : `mainnet/registered/${name}`,
     new ArrayBuffer(12),
-    { httpMetadata: { contentType: "image/png" } }
+    { httpMetadata: { contentType } }
   );
 
 describe("get", () => {
@@ -32,6 +37,23 @@ describe("get", () => {
 
     expect(await response.arrayBuffer()).toEqual(new ArrayBuffer(12));
     expect(response.status).toBe(200);
+  });
+  it("returns 404 if the file is not of type image/jpeg", async () => {
+    const request = new Request("http://localhost/test");
+    const AVATAR_BUCKET = getMiniflareBindings().AVATAR_BUCKET;
+    await putBucketItem(AVATAR_BUCKET, "test", undefined, "text/html");
+
+    const response = await onRequestGet(
+      request,
+      getMiniflareBindings() as any,
+      {} as any,
+      "test",
+      "mainnet"
+    );
+    const { message } = await response.json<ResObj>();
+
+    expect(message).toBe("test not found on mainnet");
+    expect(response.status).toBe(404);
   });
   describe("unregistered", () => {
     it("tries to fetch an owner if the file is not found", async () => {
