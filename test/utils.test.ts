@@ -63,5 +63,20 @@ describe("utils", () => {
       const { owner } = await getOwnersAndAvailable(env, "mainnet", "test.eth");
       expect(owner).toBe("0x0000000000000000000000000000000000000123");
     });
+    it("allows names that start with $", async () => {
+      mockOwnersAvailability(
+        "0x0000000000000000000000000000000000000000",
+        "0x0000000000000000000000000000000000000000",
+        true,
+        true
+      );
+      const { available, owner } = await getOwnersAndAvailable(
+        env,
+        "mainnet",
+        "$test.eth"
+      );
+      expect(available).toBe(true);
+      expect(owner).toBe(EMPTY_ADDRESS);
+    });
   });
 });

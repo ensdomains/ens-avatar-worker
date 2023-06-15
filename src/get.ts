@@ -3,9 +3,9 @@ import { Env } from "./types";
 import { EMPTY_ADDRESS, getOwnersAndAvailable } from "./utils";
 
 export default async (
-  request: Request,
+  _request: Request,
   env: Env,
-  ctx: ExecutionContext,
+  _ctx: ExecutionContext,
   name: string,
   network: string,
   asHead?: boolean

@@ -1,5 +1,3 @@
-import onRequestGet from "@/get";
-import onRequestPut from "@/put";
 import { makeResponse } from "./helpers";
 import { Env } from "./types";
 
@@ -42,12 +40,15 @@ export default {
 
     switch (request.method) {
       case "PUT": {
+        const { default: onRequestPut } = await import("@/put");
         return onRequestPut(request, env, ctx, name, network);
       }
       case "GET": {
+        const { default: onRequestGet } = await import("@/get");
         return onRequestGet(request, env, ctx, name, network);
       }
       case "HEAD": {
+        const { default: onRequestGet } = await import("@/get");
         return onRequestGet(request, env, ctx, name, network, true);
       }
       case "OPTIONS": {

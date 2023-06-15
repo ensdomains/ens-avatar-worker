@@ -7,6 +7,7 @@ import onRequestPut from "@/put";
 import { EMPTY_ADDRESS } from "@/utils";
 import { Wallet } from "ethers";
 import { sha256 } from "ethers/lib/utils";
+import { Address } from "viem";
 import { mockOwnersAvailability, ResObj } from "./test-utils";
 
 const j = (import.meta as any).jest as typeof jest;
@@ -24,7 +25,7 @@ const wallet = Wallet.fromMnemonic(
 const expiry = String(Date.now() + 100000);
 const name = "test.eth";
 
-const walletAddress = wallet.address;
+const walletAddress = wallet.address as Address;
 const _makeSig = (obj: Record<string, string>) =>
   wallet._signTypedData(
     {
