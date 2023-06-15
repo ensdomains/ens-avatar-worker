@@ -204,6 +204,7 @@ export const getOwnersAndAvailable = async (
           to: multicallData.address,
           data: encodeFunctionData(multicallData),
         },
+        "latest",
       ],
     }),
   }).then((res) => res.json<{ jsonrpc: string; id: number; result: Hex }>());
