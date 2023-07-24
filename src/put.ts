@@ -1,4 +1,6 @@
-import { sha256, verifyTypedData } from "ethers/lib/utils";
+import { sha256 } from "@noble/hashes/sha256";
+import { bytesToHex, recoverTypedDataAddress } from "viem";
+import { normalize } from "viem/ens";
 import { makeResponse } from "./helpers";
 import { AvatarUploadParams, Env } from "./types";
 import { EMPTY_ADDRESS, getOwnersAndAvailable } from "./utils";
@@ -13,24 +15,28 @@ const dataURLToBytes = (dataURL: string) => {
 export default async (
   request: Request,
   env: Env,
-  ctx: ExecutionContext,
+  _ctx: ExecutionContext,
   name: string,
   network: string
 ): Promise<Response> => {
   const { expiry, dataURL, sig } = (await request.json()) as AvatarUploadParams;
   const { mime, bytes } = dataURLToBytes(dataURL);
-  const hash = sha256(bytes);
+  const hash = bytesToHex(sha256(bytes));
 
   if (mime !== "image/jpeg") {
     return makeResponse("File must be of type image/jpeg", 403);
   }
 
-  const verifiedAddress = verifyTypedData(
-    {
+  if (name !== normalize(name)) {
+    return makeResponse("Name must be in normalized form", 403);
+  }
+
+  const verifiedAddress = await recoverTypedDataAddress({
+    domain: {
       name: "Ethereum Name Service",
       version: "1",
     },
-    {
+    types: {
       Upload: [
         { name: "upload", type: "string" },
         { name: "expiry", type: "string" },
@@ -38,14 +44,15 @@ export default async (
         { name: "hash", type: "string" },
       ],
     },
-    {
+    primaryType: "Upload",
+    signature: sig,
+    message: {
       upload: "avatar",
       expiry,
       name,
       hash,
     },
-    sig
-  );
+  });
 
   const maxSize = 1024 * 512;
 

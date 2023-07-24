@@ -5,8 +5,9 @@
 
 import onRequestPut from "@/put";
 import { EMPTY_ADDRESS } from "@/utils";
-import { Wallet } from "ethers";
-import { sha256 } from "ethers/lib/utils";
+import { sha256 } from "@noble/hashes/sha256";
+import { bytesToHex } from "viem";
+import { mnemonicToAccount } from "viem/accounts";
 import { mockOwnersAvailability, ResObj } from "./test-utils";
 
 const j = (import.meta as any).jest as typeof jest;
@@ -18,20 +19,34 @@ const dataURLToBytes = (dataURL: string) => {
   return { mime, bytes };
 };
 
-const wallet = Wallet.fromMnemonic(
+const account = mnemonicToAccount(
   "test test test test test test test test test test test junk"
 );
 const expiry = String(Date.now() + 100000);
 const name = "test.eth";
 
-const walletAddress = wallet.address;
-const _makeSig = (obj: Record<string, string>) =>
-  wallet._signTypedData(
-    {
+const walletAddress = account.address;
+
+const makeHash = (dataURL: string) =>
+  bytesToHex(sha256(dataURLToBytes(dataURL).bytes));
+
+const makeSig = ({
+  upload = "avatar",
+  expiry: expiry_ = expiry,
+  name: name_ = name,
+  dataURL,
+}: {
+  upload?: string;
+  expiry?: string;
+  name?: string;
+  dataURL: string;
+}) =>
+  account.signTypedData({
+    domain: {
       name: "Ethereum Name Service",
       version: "1",
     },
-    {
+    types: {
       Upload: [
         { name: "upload", type: "string" },
         { name: "expiry", type: "string" },
@@ -39,19 +54,14 @@ const _makeSig = (obj: Record<string, string>) =>
         { name: "hash", type: "string" },
       ],
     },
-    obj
-  );
-
-const makeSigWithHash = (hash: string) =>
-  _makeSig({
-    upload: "avatar",
-    expiry,
-    name,
-    hash,
+    primaryType: "Upload",
+    message: {
+      upload,
+      expiry: expiry_,
+      name: name_,
+      hash: makeHash(dataURL),
+    },
   });
-
-const makeSig = (dataURL: string) =>
-  makeSigWithHash(sha256(dataURLToBytes(dataURL).bytes));
 
 describe("put", () => {
   it("throws error if fetch returns error", async () => {
@@ -64,7 +74,7 @@ describe("put", () => {
       body: JSON.stringify({
         expiry,
         dataURL,
-        sig: await makeSig(dataURL),
+        sig: await makeSig({ dataURL }),
       }),
       method: "PUT",
     });
@@ -96,7 +106,7 @@ describe("put", () => {
       body: JSON.stringify({
         expiry,
         dataURL,
-        sig: await makeSigWithHash(dataURL),
+        sig: await makeSig({ dataURL }),
       }),
       method: "PUT",
     });
@@ -127,7 +137,7 @@ describe("put", () => {
       body: JSON.stringify({
         expiry,
         dataURL,
-        sig: await makeSig(dataURL),
+        sig: await makeSig({ dataURL }),
       }),
       method: "PUT",
     });
@@ -155,11 +165,9 @@ describe("put", () => {
       body: JSON.stringify({
         expiry: "1",
         dataURL,
-        sig: await _makeSig({
-          upload: "avatar",
+        sig: await makeSig({
           expiry: "1",
-          name: "test.eth",
-          hash: sha256(dataURLToBytes(dataURL).bytes),
+          dataURL,
         }),
       }),
       method: "PUT",
@@ -186,11 +194,9 @@ describe("put", () => {
       body: JSON.stringify({
         expiry: "1",
         dataURL,
-        sig: await _makeSig({
-          upload: "avatar",
+        sig: await makeSig({
           expiry: "1",
-          name: "test.eth",
-          hash: sha256(dataURLToBytes(dataURL).bytes),
+          dataURL,
         }),
       }),
       method: "PUT",
@@ -217,7 +223,7 @@ describe("put", () => {
       body: JSON.stringify({
         expiry,
         dataURL,
-        sig: await makeSig(dataURL),
+        sig: await makeSig({ dataURL }),
       }),
       method: "PUT",
     });
@@ -250,7 +256,7 @@ describe("put", () => {
       body: JSON.stringify({
         expiry,
         dataURL,
-        sig: await makeSig(dataURL),
+        sig: await makeSig({ dataURL }),
       }),
       method: "PUT",
     });

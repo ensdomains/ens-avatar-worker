@@ -1,3 +1,5 @@
+import { Address, Hex } from "viem";
+
 export interface Env {
   // Example binding to KV. Learn more at https://developers.cloudflare.com/workers/runtime-apis/kv/
   // MY_KV_NAMESPACE: KVNamespace;
@@ -12,14 +14,14 @@ export interface Env {
   // vars
   BASE_WEB3_ENDPOINT: string;
   SUPPORTED_NETWORKS: string[];
-  REGISTRY_ADDRESS: string;
-  WRAPPER_ADDRESS: string;
-  MULTICALL_ADDRESS: string;
-  BASE_REGISTRAR_ADDRESS: string;
+  REGISTRY_ADDRESS: Address;
+  WRAPPER_ADDRESS: Address;
+  MULTICALL_ADDRESS: Address;
+  BASE_REGISTRAR_ADDRESS: Address;
 }
 
 export type AvatarUploadParams = {
   expiry: string;
   dataURL: string;
-  sig: string;
+  sig: Hex;
 };

@@ -1,103 +1,227 @@
-import namehash from '@ensdomains/eth-ens-namehash';
-import { Interface, keccak256, toUtf8Bytes } from "ethers/lib/utils";
-import { Env } from "./types";
+import type { Env } from "./types";
+
+import {
+  Hex,
+  decodeFunctionResult,
+  encodeFunctionData,
+  hexToBigInt,
+  type Address,
+  type ContractFunctionConfig,
+} from "viem";
+
+import { labelhash, namehash } from "viem/ens";
 
 export const EMPTY_ADDRESS = "0x0000000000000000000000000000000000000000";
 
-export const registry = new Interface([
-  "function owner(bytes32 node) public view returns (address)",
-]);
-
-export const nameWrapper = new Interface([
-  "function ownerOf(uint256 id) public view returns (address)",
-]);
-
-export const baseRegistrar = new Interface([
-  "function available(uint256 id) public view returns (bool)",
-]);
-
-export const multicall = new Interface([
-  "function aggregate((address,bytes)[]) returns (uint256, bytes[])",
-]);
-
-export const _handleFetch =
-  (endpoint: string) =>
-  async (
-    to: string,
-    data: string
-  ): Promise<{
-    jsonrpc: string;
-    result: string;
-    id: number;
-  }> => {
-    return await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+export const registryAbi = [
+  {
+    inputs: [
+      {
+        name: "node",
+        type: "bytes32",
       },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        method: "eth_call",
-        params: [
+    ],
+    name: "owner",
+    outputs: [
+      {
+        name: "",
+        type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+export const nameWrapperAbi = [
+  {
+    inputs: [
+      {
+        name: "id",
+        type: "uint256",
+      },
+    ],
+    name: "ownerOf",
+    outputs: [
+      {
+        name: "owner",
+        type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+export const baseRegistrarAbi = [
+  {
+    inputs: [
+      {
+        name: "id",
+        type: "uint256",
+      },
+    ],
+    name: "available",
+    outputs: [
+      {
+        name: "available",
+        type: "bool",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+export const multicallAbi = [
+  {
+    inputs: [
+      {
+        components: [
           {
-            to,
-            data,
+            name: "target",
+            type: "address",
           },
-          "latest",
+          {
+            name: "allowFailure",
+            type: "bool",
+          },
+          {
+            name: "callData",
+            type: "bytes",
+          },
         ],
-        id: 1,
-      }),
-    }).then((res) => res.json());
-  };
+        name: "calls",
+        type: "tuple[]",
+      },
+    ],
+    name: "aggregate3",
+    outputs: [
+      {
+        components: [
+          {
+            name: "success",
+            type: "bool",
+          },
+          {
+            name: "returnData",
+            type: "bytes",
+          },
+        ],
+        name: "returnData",
+        type: "tuple[]",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+type RegistryCall = ContractFunctionConfig<typeof registryAbi, "owner", "view">;
+
+type NameWrapperCall = ContractFunctionConfig<
+  typeof nameWrapperAbi,
+  "ownerOf",
+  "view"
+>;
+
+type AvailableCall = ContractFunctionConfig<
+  typeof baseRegistrarAbi,
+  "available",
+  "view"
+>;
+
+type MulticallCall = ContractFunctionConfig<
+  typeof multicallAbi,
+  "aggregate3",
+  "view"
+>;
 
 export const getOwnersAndAvailable = async (
   env: Env,
   network: string,
   name: string
 ) => {
-  const handleFetch = _handleFetch(env.BASE_WEB3_ENDPOINT + "/" + network);
   const wrapperAddress = JSON.parse(env.WRAPPER_ADDRESS)[network];
+  const endpoint = env.BASE_WEB3_ENDPOINT + "/" + network;
 
   const labels = name.split(".");
-  const nameHash = namehash.hash(name);
-  const labelHash = keccak256(toUtf8Bytes(labels[0]));
+  const nameHash = namehash(name);
+  const labelHash = labelhash(labels[0]);
   const isDotETH2ld = labels.length === 2 && labels[1] === "eth";
 
-  const calls: [string, string][] = [
-    [env.REGISTRY_ADDRESS, registry.encodeFunctionData("owner", [nameHash])],
-    [wrapperAddress, nameWrapper.encodeFunctionData("ownerOf", [nameHash])],
+  const registryCall: RegistryCall = {
+    address: env.REGISTRY_ADDRESS,
+    abi: registryAbi,
+    functionName: "owner",
+    args: [nameHash],
+  };
+
+  const nameWrapperCall: NameWrapperCall = {
+    address: wrapperAddress,
+    abi: nameWrapperAbi,
+    functionName: "ownerOf",
+    args: [hexToBigInt(nameHash)],
+  };
+
+  const availableCall: AvailableCall = {
+    address: env.BASE_REGISTRAR_ADDRESS,
+    abi: baseRegistrarAbi,
+    functionName: "available",
+    args: [hexToBigInt(labelHash)],
+  };
+
+  const calls = [
+    registryCall,
+    nameWrapperCall,
+    ...(isDotETH2ld ? [availableCall] : []),
   ];
 
-  if (isDotETH2ld) {
-    calls.push([
-      env.BASE_REGISTRAR_ADDRESS,
-      baseRegistrar.encodeFunctionData("available", [labelHash]),
-    ]);
-  }
+  const multicallData: MulticallCall = {
+    address: env.MULTICALL_ADDRESS,
+    abi: multicallAbi,
+    functionName: "aggregate3",
+    args: [
+      calls.map(({ abi, address, args, functionName }) => ({
+        target: address,
+        allowFailure: false,
+        callData: encodeFunctionData({ abi, args, functionName } as any),
+      })),
+    ],
+  };
 
-  const multicallResult = await handleFetch(
-    env.MULTICALL_ADDRESS,
-    multicall.encodeFunctionData("aggregate", [calls])
-  );
-  const [, [registryOwnerResult, nameWrapperOwnerResult, baseRegistrarResult]] =
-    multicall.decodeFunctionResult("aggregate", multicallResult.result);
+  const data = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "eth_call",
+      params: [
+        {
+          to: multicallData.address,
+          data: encodeFunctionData(multicallData),
+        },
+        "latest",
+      ],
+    }),
+  }).then((res) => res.json<{ jsonrpc: string; id: number; result: Hex }>());
 
-  const [registryOwner] = registry.decodeFunctionResult(
-    "owner",
-    registryOwnerResult
-  );
-  const [nameWrapperOwner] = nameWrapper.decodeFunctionResult(
-    "ownerOf",
-    nameWrapperOwnerResult
-  );
-  let available = false;
-
-  if (isDotETH2ld) {
-    [available] = baseRegistrar.decodeFunctionResult(
-      "available",
-      baseRegistrarResult
-    );
-  }
+  const [registryOwner, nameWrapperOwner, available = false] =
+    decodeFunctionResult({
+      abi: multicallAbi,
+      functionName: "aggregate3",
+      data: data.result,
+    }).map(({ returnData, success }, i) => {
+      if (!success) throw new Error("Call failed");
+      const call = calls[i];
+      return decodeFunctionResult({
+        ...call,
+        data: returnData,
+      } as any);
+    }) as [Address, Address, boolean | undefined];
 
   let owner = EMPTY_ADDRESS;
 

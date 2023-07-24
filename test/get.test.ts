@@ -58,29 +58,29 @@ describe("get", () => {
   describe("unregistered", () => {
     it("tries to fetch an owner if the file is not found", async () => {
       mockOwnersAvailability(EMPTY_ADDRESS, EMPTY_ADDRESS, true, true);
-      const request = new Request("http://localhost/test");
+      const request = new Request("http://localhost/test.eth");
       await onRequestGet(
         request,
         getMiniflareBindings() as any,
         {} as any,
-        "test",
+        "test.eth",
         "mainnet"
       );
       expect(globalThis.fetch).toHaveBeenCalled();
     });
     it("returns 404 if the name is not registered", async () => {
       mockOwnersAvailability(EMPTY_ADDRESS, EMPTY_ADDRESS, true, true);
-      const request = new Request("http://localhost/test");
+      const request = new Request("http://localhost/test.eth");
       const response = await onRequestGet(
         request,
         getMiniflareBindings() as any,
         {} as any,
-        "test",
+        "test.eth",
         "mainnet"
       );
       const { message } = await response.json<ResObj>();
 
-      expect(message).toBe("test not found on mainnet");
+      expect(message).toBe("test.eth not found on mainnet");
       expect(response.status).toBe(404);
     });
     it("returns 404 if there is no associated unregistered file for the owner", async () => {
@@ -90,17 +90,17 @@ describe("get", () => {
         true,
         false
       );
-      const request = new Request("http://localhost/test");
+      const request = new Request("http://localhost/test.eth");
       const response = await onRequestGet(
         request,
         getMiniflareBindings() as any,
         {} as any,
-        "test",
+        "test.eth",
         "mainnet"
       );
       const { message } = await response.json<ResObj>();
 
-      expect(message).toBe("test not found on mainnet");
+      expect(message).toBe("test.eth not found on mainnet");
       expect(response.status).toBe(404);
     });
     it("returns the unregistered file if found from matching owner", async () => {
@@ -113,16 +113,16 @@ describe("get", () => {
       const AVATAR_BUCKET = getMiniflareBindings().AVATAR_BUCKET;
       await putBucketItem(
         AVATAR_BUCKET,
-        "test",
+        "test.eth",
         "0x0000000000000000000000000000000000000123"
       );
 
-      const request = new Request("http://localhost/test");
+      const request = new Request("http://localhost/test.eth");
       const response = await onRequestGet(
         request,
         getMiniflareBindings() as any,
         {} as any,
-        "test",
+        "test.eth",
         "mainnet"
       );
 
