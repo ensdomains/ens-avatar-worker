@@ -1,61 +1,32 @@
-import { makeResponse } from "./helpers";
+import { createCors, error } from "itty-router";
+import { Router } from "itty-router/Router";
+import { ValidatedRequest, validateChain } from "./chains";
+import { handleGet } from "./get";
+import { handlePut } from "./put";
 import { Env } from "./types";
 
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `wrangler dev src/index.ts` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `wrangler publish src/index.ts --name my-worker` to publish your worker
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
+const { preflight, corsify } = createCors({
+  origins: ["*"],
+  methods: ["PUT", "GET", "HEAD", "OPTIONS"],
+});
+
+const router = Router();
+
+router.all("*", preflight);
+router.all("/:network/:name?", validateChain);
+router.put<ValidatedRequest, [Env]>("/:network/:name?", handlePut);
+router.get<ValidatedRequest, [Env]>("/:network/:name?", handleGet);
+router.head<ValidatedRequest, [Env]>("/:network/:name?", handleGet);
+router.options("/:network/:name?", () => new Response(null, { status: 204 }));
 
 export default {
-  async fetch(
-    request: Request,
-    env: Env,
-    ctx: ExecutionContext
-  ): Promise<Response> {
-    const networks = env.SUPPORTED_NETWORKS;
-    const url = new URL(request.url);
-    let network = url.pathname.split("/")[1];
-    let name = url.pathname.split("/")[2];
-
-    if (!name) {
-      name = network;
-      network = "mainnet";
-    }
-
-    // make sure name is decoded
-    name = decodeURIComponent(name);
-
-    if (!network || !networks.includes(network)) {
-      return makeResponse("Network not supported", 400);
-    }
-
-    if (!name) {
-      return makeResponse("Missing name parameter", 400);
-    }
-
-    switch (request.method) {
-      case "PUT": {
-        const { default: onRequestPut } = await import("@/put");
-        return onRequestPut(request, env, ctx, name, network);
-      }
-      case "GET": {
-        const { default: onRequestGet } = await import("@/get");
-        return onRequestGet(request, env, ctx, name, network);
-      }
-      case "HEAD": {
-        const { default: onRequestGet } = await import("@/get");
-        return onRequestGet(request, env, ctx, name, network, true);
-      }
-      case "OPTIONS": {
-        return makeResponse(null);
-      }
-      default:
-        return makeResponse(`Unsupported method: ${request.method}`, 405);
-    }
-  },
+  fetch: async (request: Request, env: Env) =>
+    router
+      .handle(request, env)
+      .catch((e) => {
+        console.error("Caught error");
+        console.error(e);
+        return error(500, "Internal Server Error");
+      })
+      .then(corsify),
 };

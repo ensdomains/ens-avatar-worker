@@ -1,9 +1,11 @@
 import { sha256 } from "@noble/hashes/sha256";
+import { error } from "itty-router/error";
+import { text } from "itty-router/text";
 import { bytesToHex, recoverTypedDataAddress } from "viem";
 import { normalize } from "viem/ens";
-import { makeResponse } from "./helpers";
+import { ValidatedRequest } from "./chains";
 import { AvatarUploadParams, Env } from "./types";
-import { EMPTY_ADDRESS, getOwnersAndAvailable } from "./utils";
+import { getOwnerAndAvailable } from "./utils";
 
 const dataURLToBytes = (dataURL: string) => {
   const base64 = dataURL.split(",")[1];
@@ -12,23 +14,18 @@ const dataURLToBytes = (dataURL: string) => {
   return { mime, bytes };
 };
 
-export default async (
-  request: Request,
-  env: Env,
-  _ctx: ExecutionContext,
-  name: string,
-  network: string
-): Promise<Response> => {
+export const handlePut = async (request: ValidatedRequest, env: Env) => {
+  const { name, network, chain } = request;
   const { expiry, dataURL, sig } = (await request.json()) as AvatarUploadParams;
   const { mime, bytes } = dataURLToBytes(dataURL);
   const hash = bytesToHex(sha256(bytes));
 
   if (mime !== "image/jpeg") {
-    return makeResponse("File must be of type image/jpeg", 403);
+    return error(415, "File must be of type image/jpeg");
   }
 
   if (name !== normalize(name)) {
-    return makeResponse("Name must be in normalized form", 403);
+    return error(400, "Name must be in normalized form");
   }
 
   const verifiedAddress = await recoverTypedDataAddress({
@@ -52,29 +49,37 @@ export default async (
       name,
       hash,
     },
+  }).catch((e) => {
+    console.error("Error while recovering typed data address");
+    console.error(e);
+    return null;
   });
+
+  if (!verifiedAddress) {
+    return error(400, "Invalid signature");
+  }
 
   const maxSize = 1024 * 512;
 
   if (bytes.byteLength > maxSize) {
-    return makeResponse(`Image is too large`, 413);
+    return error(413, "Image is too large");
   }
 
-  const { available, owner } = await getOwnersAndAvailable(env, network, name);
+  const { available, owner } = await getOwnerAndAvailable({ env, chain, name });
 
   if (!available) {
-    if (owner === EMPTY_ADDRESS) {
-      return makeResponse(`Name not found`, 404);
+    if (!owner) {
+      return error(404, "Name not found");
     } else if (verifiedAddress !== owner) {
-      return makeResponse(
-        `Address ${verifiedAddress} is not the owner of ${name}`,
-        403
+      return error(
+        403,
+        `Address ${verifiedAddress} is not the owner of ${name}`
       );
     }
   }
 
   if (parseInt(expiry) < Date.now()) {
-    return makeResponse(`Signature expired`, 403);
+    return error(403, "Signature expired");
   }
 
   const bucket = env.AVATAR_BUCKET;
@@ -87,8 +92,8 @@ export default async (
   });
 
   if (uploaded.key === key) {
-    return makeResponse("uploaded", 200);
+    return text("uploaded", { status: 200 });
   } else {
-    return makeResponse(`${name} not uploaded`, 500);
+    return text(`${name} not uploaded`, { status: 500 });
   }
 };
