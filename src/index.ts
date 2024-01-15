@@ -18,6 +18,7 @@ router.put<ValidatedRequest, [Env]>("/:network/:name?", handlePut);
 router.get<ValidatedRequest, [Env]>("/:network/:name?", handleGet);
 router.head<ValidatedRequest, [Env]>("/:network/:name?", handleGet);
 router.options("/:network/:name?", () => new Response(null, { status: 204 }));
+router.all("*", () => error(404, "Not Found"));
 
 export default {
   fetch: async (request: Request, env: Env) =>

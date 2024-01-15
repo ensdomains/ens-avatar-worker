@@ -1,7 +1,11 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "types": ["@cloudflare/workers-types", "jest", "../bindings"]
+    "types": [
+      "@cloudflare/workers-types",
+      "vitest-environment-miniflare/globals",
+      "../bindings"
+    ]
   },
   "include": ["../src/**/*", "**/*"]
 }

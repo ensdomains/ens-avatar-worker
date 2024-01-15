@@ -3,8 +3,6 @@ import type { Env } from "./types";
 import { getAvailable, getOwner } from "@ensdomains/ensjs/public";
 import { getClient, type chains } from "./chains";
 
-export const EMPTY_ADDRESS = "0x0000000000000000000000000000000000000000";
-
 export const getOwnerAndAvailable = async ({
   env,
   chain,

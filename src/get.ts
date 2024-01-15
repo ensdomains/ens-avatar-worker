@@ -1,5 +1,4 @@
 import { error } from "itty-router/error";
-import { jpeg } from "itty-router/jpeg";
 import { ValidatedRequest } from "./chains";
 import { Env } from "./types";
 import { getOwnerAndAvailable } from "./utils";
@@ -17,7 +16,7 @@ export const handleGet = async (request: ValidatedRequest, env: Env) => {
       name,
     });
 
-    if (!available && !owner) {
+    if (!available && owner) {
       file = await env.AVATAR_BUCKET.get(
         `${network}/unregistered/${name}/${owner}`
       );
@@ -32,7 +31,7 @@ export const handleGet = async (request: ValidatedRequest, env: Env) => {
       let cursor: string | undefined = undefined;
 
       do {
-        const { objects, cursor: newCursor } = await env.AVATAR_BUCKET.list({
+        const { objects, ...rest } = await env.AVATAR_BUCKET.list({
           prefix: `${network}/unregistered/${name}/`,
           cursor,
         });
@@ -43,7 +42,11 @@ export const handleGet = async (request: ValidatedRequest, env: Env) => {
         }
 
         await env.AVATAR_BUCKET.delete(keys);
-        cursor = newCursor as string | undefined;
+        if (rest.truncated) {
+          cursor = rest.cursor;
+        } else {
+          break;
+        }
       } while (true);
     }
   }
@@ -54,7 +57,7 @@ export const handleGet = async (request: ValidatedRequest, env: Env) => {
 
   const asHead = request.method === "HEAD";
 
-  return jpeg(asHead ? undefined : fileBody, {
+  return new Response(asHead ? undefined : fileBody, {
     status: 200,
     headers: {
       "Content-Length": String(file.size),

@@ -1,9 +1,0 @@
-{
-  "extends": "../tsconfig.json",
-  "compilerOptions": {
-    "paths": {
-      "@/put": ["./mocks/putMock.ts"],
-      "@/get": ["./mocks/getMock.ts"]
-    }
-  }
-}

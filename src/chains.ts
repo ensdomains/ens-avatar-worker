@@ -5,7 +5,7 @@ import { createClient, http } from "viem";
 import { goerli, mainnet, sepolia } from "viem/chains";
 import { Env } from "./types";
 
-type Network = "mainnet" | "goerli" | "sepolia";
+export type Network = "mainnet" | "goerli" | "sepolia";
 
 export type ValidatedRequest = IRequestStrict & {
   chain: (typeof chains)[number];
