@@ -23,7 +23,9 @@ describe("getClient", () => {
   test("return client with transport", () => {
     const client = getClient({
       env: {
-        BASE_WEB3_ENDPOINT: "https://example.com",
+        WEB3_ENDPOINT_MAP: JSON.stringify({
+          mainnet: "https://example.com/mainnet",
+        }),
       } as any,
       chain: getChainFromNetwork("mainnet")!,
     });

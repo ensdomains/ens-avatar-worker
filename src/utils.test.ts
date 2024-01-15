@@ -22,7 +22,9 @@ describe("getOwnerAndAvailable", () => {
 
     const { owner, available } = await getOwnerAndAvailable({
       env: {
-        BASE_WEB3_ENDPOINT: "https://example.com",
+        WEB3_ENDPOINT_MAP: JSON.stringify({
+          mainnet: "https://example.com/mainnet",
+        }),
       } as any,
       chain: getChainFromNetwork("mainnet")!,
       name: "test.eth",
@@ -47,7 +49,9 @@ describe("getOwnerAndAvailable", () => {
 
     const { owner, available } = await getOwnerAndAvailable({
       env: {
-        BASE_WEB3_ENDPOINT: "https://example.com",
+        WEB3_ENDPOINT_MAP: JSON.stringify({
+          mainnet: "https://example.com/mainnet",
+        }),
       } as any,
       chain: getChainFromNetwork("mainnet")!,
       name: "test",
@@ -67,7 +71,9 @@ describe("getOwnerAndAvailable", () => {
 
     const { owner } = await getOwnerAndAvailable({
       env: {
-        BASE_WEB3_ENDPOINT: "https://example.com",
+        WEB3_ENDPOINT_MAP: JSON.stringify({
+          mainnet: "https://example.com/mainnet",
+        }),
       } as any,
       chain: getChainFromNetwork("mainnet")!,
       name: "test.eth",
