@@ -12,7 +12,7 @@ export interface Env {
   AVATAR_BUCKET: R2Bucket;
 
   // vars
-  BASE_WEB3_ENDPOINT: string;
+  WEB3_ENDPOINT_MAP: string;
 }
 
 export type AvatarUploadParams = {

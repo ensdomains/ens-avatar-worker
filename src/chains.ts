@@ -33,10 +33,15 @@ export const getClient = ({
   chain: (typeof chains)[number];
 }) => {
   const chainName_ = chain.name.toLowerCase();
-  const chainName = chainName_ === "ethereum" ? "mainnet" : chainName_;
+  const chainName =
+    chainName_ === "ethereum" ? "mainnet" : (chainName_ as Network);
+  const endpointMap = JSON.parse(env.WEB3_ENDPOINT_MAP) as Record<
+    Network,
+    string
+  >;
   return createClient({
     chain,
-    transport: http(env.BASE_WEB3_ENDPOINT + "/" + chainName),
+    transport: http(endpointMap[chainName]),
   });
 };
 
