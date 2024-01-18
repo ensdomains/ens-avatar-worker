@@ -111,7 +111,11 @@ describe("put", () => {
 
     const response = await handlePut(request, getMiniflareBindings() as any);
     expect(response.status).toBe(200);
-    expect(await response.text()).toMatchInlineSnapshot(`"uploaded"`);
+    expect(await response.json()).toMatchInlineSnapshot(`
+      {
+        "message": "uploaded",
+      }
+    `);
 
     const AVATAR_BUCKET = getMiniflareBindings().AVATAR_BUCKET;
     const result = await AVATAR_BUCKET.get("mainnet/registered/test.eth");
@@ -140,7 +144,11 @@ describe("put", () => {
 
     const response = await handlePut(request, getMiniflareBindings() as any);
     expect(response.status).toBe(200);
-    expect(await response.text()).toMatchInlineSnapshot(`"uploaded"`);
+    expect(await response.json()).toMatchInlineSnapshot(`
+      {
+        "message": "uploaded",
+      }
+    `);
 
     const AVATAR_BUCKET = getMiniflareBindings().AVATAR_BUCKET;
     const result = await AVATAR_BUCKET.get(

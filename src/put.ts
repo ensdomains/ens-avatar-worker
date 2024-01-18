@@ -1,6 +1,6 @@
 import { sha256 } from "@noble/hashes/sha256";
+import { json } from "itty-router";
 import { error } from "itty-router/error";
-import { text } from "itty-router/text";
 import { bytesToHex, recoverTypedDataAddress } from "viem";
 import { normalize } from "viem/ens";
 import { ValidatedRequest } from "./chains";
@@ -92,8 +92,8 @@ export const handlePut = async (request: ValidatedRequest, env: Env) => {
   });
 
   if (uploaded.key === key) {
-    return text("uploaded", { status: 200 });
+    return json({ message: "uploaded" }, { status: 200 });
   } else {
-    return text(`${name} not uploaded`, { status: 500 });
+    return error(500, `${name} not uploaded`);
   }
 };
