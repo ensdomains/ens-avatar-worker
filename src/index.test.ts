@@ -65,6 +65,27 @@ test("get handler for get request", async () => {
   expect(await response.text()).toBe("get");
 });
 
+test.only("head handler for head request", async () => {
+  vi.mocked(handleGet).mockImplementation(async () => {
+    let response = new Response(null);
+    response.headers.set("Content-Type", "application/json");
+    response.headers.set("Custom-Header", "HeaderValue");
+    return response;
+  });
+
+  const response = await index.fetch(
+    new Request("http://localhost/mainnet/test", {
+      method: "HEAD",
+    }),
+    {} as any
+  );
+  expect(handleGet).toHaveBeenCalled();
+  expect(response.status).toBe(200);
+  expect(response.body).toBe(null);
+  expect(response.headers.get("Content-Type")).toBe("application/json");
+  expect(response.headers.get("Custom-Header")).toBe("HeaderValue");
+});
+
 test("options returned on options request", async () => {
   const response = await index.fetch(
     new Request("http://localhost/mainnet/test", {
