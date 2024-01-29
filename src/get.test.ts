@@ -114,6 +114,11 @@ describe("get", () => {
   });
 
   test("should not return for another network", async () => {
+    vi.mocked(getOwnerAndAvailable).mockResolvedValueOnce({
+      owner: null,
+      available: true,
+    });
+
     const request = createRequest({ name: "test" });
     const AVATAR_BUCKET = getMiniflareBindings().AVATAR_BUCKET;
     await putBucketItem(AVATAR_BUCKET, { name: "test" });
