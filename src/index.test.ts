@@ -65,7 +65,7 @@ test("get handler for get request", async () => {
   expect(await response.text()).toBe("get");
 });
 
-test.only("head handler for head request", async () => {
+test("head handler for head request", async () => {
   vi.mocked(handleGet).mockImplementation(async () => {
     let response = new Response(null);
     response.headers.set("Content-Type", "application/json");
