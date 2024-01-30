@@ -86,6 +86,53 @@ describe("get", () => {
     `);
   });
 
+  test("updates an existing image with a new one", async () => {
+    const name = "test-update";
+    const AVATAR_BUCKET = getMiniflareBindings().AVATAR_BUCKET;
+  
+    // Step 1: Put the initial image into the storage
+    const initialContent = new ArrayBuffer(24);
+    await AVATAR_BUCKET.put(`goerli/registered/${name}`,
+    initialContent,
+    { httpMetadata: { "contentType": "image/jpeg" } });
+    let request = createRequest({ name, network: "goerli" });
+    let initialResponse = await handleGet(request, getMiniflareBindings() as any);
+    expect(await initialResponse.arrayBuffer()).toEqual(new ArrayBuffer(12));
+    expect(initialResponse.status).toBe(200);
+  
+    // Step 2: Update the image with a new one
+    const updatedContent = new ArrayBuffer(24);
+    await AVATAR_BUCKET.put(`goerli/registered/${name}`,
+    updatedContent,
+    { httpMetadata: { "contentType": "image/jpeg" } });
+  
+    // Step 3: Verify that the storage now contains the updated image
+    let updateResponse = await handleGet(request, getMiniflareBindings() as any);
+    expect(await updateResponse.arrayBuffer()).toEqual(updatedContent);
+    expect(updateResponse.status).toBe(200);
+    expect(updateResponse.headers.get("content-length")).toBe("24");
+  });
+
+  test("should not return for another network", async () => {
+    vi.mocked(getOwnerAndAvailable).mockResolvedValueOnce({
+      owner: null,
+      available: true,
+    });
+
+    const request = createRequest({ name: "test" });
+    const AVATAR_BUCKET = getMiniflareBindings().AVATAR_BUCKET;
+    await putBucketItem(AVATAR_BUCKET, { name: "test" });
+
+    const response = await handleGet(request, getMiniflareBindings() as any);
+
+    expect(await response.arrayBuffer()).toEqual(new ArrayBuffer(12));
+    expect(response.status).toBe(200);
+
+    const newRequest = createRequest({ name: "test", network: "goerli" });
+    const newResponse = await handleGet(newRequest, getMiniflareBindings() as any);
+    expect(await newResponse.arrayBuffer()).toEqual(new ArrayBuffer(12));
+  });
+
   describe("unregistered", () => {
     test("get owner when file not found", async () => {
       vi.mocked(getOwnerAndAvailable).mockResolvedValueOnce({
@@ -152,7 +199,7 @@ describe("get", () => {
         }
       `);
     });
-    test("404 - name is registed - no unregistered file - existing owned files", async () => {
+    test("404 - name is registered - no unregistered file - existing owned files", async () => {
       vi.mocked(getOwnerAndAvailable).mockResolvedValueOnce({
         owner: "0x123",
         available: false,
@@ -214,4 +261,5 @@ describe("get", () => {
       expect(objects).toEqual([]);
     });
   });
+  
 });
