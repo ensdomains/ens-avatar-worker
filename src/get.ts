@@ -1,26 +1,22 @@
-import { makeResponse } from "./helpers";
+import { error } from "itty-router/error";
+import { ValidatedRequest } from "./chains";
 import { Env } from "./types";
-import { EMPTY_ADDRESS, getOwnersAndAvailable } from "./utils";
+import { getOwnerAndAvailable } from "./utils";
 
-export default async (
-  _request: Request,
-  env: Env,
-  _ctx: ExecutionContext,
-  name: string,
-  network: string,
-  asHead?: boolean
-) => {
+export const handleGet = async (request: ValidatedRequest, env: Env) => {
+  const { name, network, chain } = request;
+
   let file = await env.AVATAR_BUCKET.get(`${network}/registered/${name}`);
   let fileBody = file?.body;
 
   if (!file) {
-    const { owner, available } = await getOwnersAndAvailable(
+    const { owner, available } = await getOwnerAndAvailable({
       env,
-      network,
-      name
-    );
+      chain,
+      name,
+    });
 
-    if (!available && owner !== EMPTY_ADDRESS) {
+    if (!available && owner) {
       file = await env.AVATAR_BUCKET.get(
         `${network}/unregistered/${name}/${owner}`
       );
@@ -35,7 +31,7 @@ export default async (
       let cursor: string | undefined = undefined;
 
       do {
-        const { objects, cursor: newCursor } = await env.AVATAR_BUCKET.list({
+        const { objects, ...rest } = await env.AVATAR_BUCKET.list({
           prefix: `${network}/unregistered/${name}/`,
           cursor,
         });
@@ -46,17 +42,25 @@ export default async (
         }
 
         await env.AVATAR_BUCKET.delete(keys);
-        cursor = newCursor as string | undefined;
+        if (rest.truncated) {
+          cursor = rest.cursor;
+        } else {
+          break;
+        }
       } while (true);
     }
   }
 
   if (!file || file.httpMetadata?.contentType !== "image/jpeg") {
-    return makeResponse(`${name} not found on ${network}`, 404);
+    return error(404, `${name} not found on ${network}`);
   }
 
-  return makeResponse(asHead ? undefined : fileBody, 200, {
-    "Content-Type": "image/jpeg",
-    "Content-Length": file.size,
+  const asHead = request.method === "HEAD";
+
+  return new Response(asHead ? undefined : fileBody, {
+    status: 200,
+    headers: {
+      "Content-Length": String(file.size),
+    },
   });
 };

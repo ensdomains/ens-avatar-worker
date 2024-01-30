@@ -1,4 +1,4 @@
-import { Address, Hex } from "viem";
+import { Hex } from "viem";
 
 export interface Env {
   // Example binding to KV. Learn more at https://developers.cloudflare.com/workers/runtime-apis/kv/
@@ -12,12 +12,7 @@ export interface Env {
   AVATAR_BUCKET: R2Bucket;
 
   // vars
-  BASE_WEB3_ENDPOINT: string;
-  SUPPORTED_NETWORKS: string[];
-  REGISTRY_ADDRESS: Address;
-  WRAPPER_ADDRESS: Address;
-  MULTICALL_ADDRESS: Address;
-  BASE_REGISTRAR_ADDRESS: Address;
+  WEB3_ENDPOINT_MAP: string;
 }
 
 export type AvatarUploadParams = {
