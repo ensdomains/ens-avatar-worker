@@ -60,6 +60,7 @@ export const handleGet = async (request: ValidatedRequest, env: Env) => {
   return new Response(asHead ? undefined : fileBody, {
     status: 200,
     headers: {
+      "Content-Type": file.httpMetadata?.contentType,
       "Content-Length": String(file.size),
     },
   });
