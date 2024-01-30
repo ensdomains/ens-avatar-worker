@@ -61,6 +61,7 @@ export const handleGet = async (request: ValidatedRequest, env: Env) => {
     status: 200,
     headers: {
       "Content-Length": String(file.size),
+      "Content-Type": "image/jpeg",
     },
   });
 };
