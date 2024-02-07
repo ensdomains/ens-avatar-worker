@@ -15,7 +15,7 @@ export const getOwnerAndAvailable = async ({
   const client = getClient({ env, chain });
 
   const labels = name.split(".");
-  const isDotEth = labels[labels.length - 1] === "eth";
+  const isDotEth = labels.length === 2 && labels[1] === "eth";
 
   const [ownership, available] = await Promise.all([
     getOwner(client, { name }),
