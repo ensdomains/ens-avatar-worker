@@ -65,6 +65,31 @@ describe("getOwnerAndAvailable", () => {
     expect(owner).toBe("0x123");
     expect(available).toBe(false);
   });
+  test("return owner and available - eth 3ld", async () => {
+    vi.mocked(getOwner).mockResolvedValueOnce({
+      owner: "0x123",
+      ownershipLevel: "registry",
+    });
+    vi.mocked(getAvailable).mockResolvedValueOnce(false);
+
+    const { owner, available } = await getOwnerAndAvailable({
+      env: {
+        WEB3_ENDPOINT_MAP: JSON.stringify({
+          mainnet: "https://example.com/mainnet",
+        }),
+      } as any,
+      chain: getChainFromNetwork("mainnet")!,
+      name: "sub.test.eth",
+    });
+
+    expect(getOwner).toHaveBeenCalledWith(expect.anything(), {
+      name: "sub.test.eth",
+    });
+    expect(getAvailable).not.toHaveBeenCalled();
+
+    expect(owner).toBe("0x123");
+    expect(available).toBe(false);
+  });
   test("null owner", async () => {
     vi.mocked(getOwner).mockResolvedValueOnce(null);
     vi.mocked(getAvailable).mockResolvedValueOnce(true);
