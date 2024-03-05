@@ -2,9 +2,6 @@ name = "avatar-upload"
 main = "src/index.ts"
 compatibility_date = "2023-05-18"
 
-[vars]
-WEB3_ENDPOINT_MAP = '{ "mainnet": "https://web3.ens.domains/v1/mainnet", "goerli": "https://eth-goerli.g.alchemy.com/v2/AnMvvsGnffjYbuJ6hzZ7gb7-O_8HzpWb", "sepolia": "https://eth-sepolia.g.alchemy.com/v2/AnMvvsGnffjYbuJ6hzZ7gb7-O_8HzpWb" }'
-
 [[r2_buckets]]
 binding = "AVATAR_BUCKET"
 bucket_name = 'avatar-storage'
