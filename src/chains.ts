@@ -2,10 +2,10 @@ import { addEnsContracts } from "@ensdomains/ensjs";
 import { IRequest, IRequestStrict } from "itty-router/Router";
 import { error } from "itty-router/error";
 import { createClient, http } from "viem";
-import { goerli, mainnet, sepolia } from "viem/chains";
+import { goerli, holesky, mainnet, sepolia } from "viem/chains";
 import { Env } from "./types";
 
-export type Network = "mainnet" | "goerli" | "sepolia";
+export type Network = "mainnet" | "goerli" | "sepolia" | "holesky";
 
 export type ValidatedRequest = IRequestStrict & {
   chain: (typeof chains)[number];
@@ -17,6 +17,7 @@ export const chains = [
   addEnsContracts(mainnet),
   addEnsContracts(goerli),
   addEnsContracts(sepolia),
+  addEnsContracts(holesky),
 ] as const;
 
 export const getChainFromNetwork = (network_: string) => {

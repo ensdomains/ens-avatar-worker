@@ -11,6 +11,9 @@ describe("getChainFromNetwork", () => {
   test("return chain for sepolia", () => {
     expect(getChainFromNetwork("sepolia")).toBeDefined();
   });
+  test("return chain for holesky", () => {
+    expect(getChainFromNetwork("holesky")).toBeDefined();
+  });
   test("return undefined for unknown network", () => {
     expect(getChainFromNetwork("unknown")).toBeUndefined();
   });

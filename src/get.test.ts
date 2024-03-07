@@ -137,7 +137,7 @@ describe("get", () => {
     expect(await response.arrayBuffer()).toEqual(new ArrayBuffer(12));
     expect(response.status).toBe(200);
 
-    const newRequest = createRequest({ name: "test", network: "goerli" });
+    const newRequest = createRequest({ name: "test", network: "holesky" });
     const newResponse = await handleGet(
       newRequest,
       getMiniflareBindings() as any
