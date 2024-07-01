@@ -1,4 +1,4 @@
-import { Hex } from "viem";
+import type { Address, Hex } from "viem";
 
 export interface Env {
   // Example binding to KV. Learn more at https://developers.cloudflare.com/workers/runtime-apis/kv/
@@ -19,4 +19,5 @@ export type AvatarUploadParams = {
   expiry: string;
   dataURL: string;
   sig: Hex;
+  unverifiedAddress: Address;
 };

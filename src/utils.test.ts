@@ -1,7 +1,22 @@
 import { getAvailable, getOwner } from "@ensdomains/ensjs/public";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { createAnvil } from "@viem/anvil";
+import { padHex } from "viem";
+import { mnemonicToAccount } from "viem/accounts";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
+} from "vitest";
 import { getChainFromNetwork } from "./chains";
-import { getOwnerAndAvailable } from "./utils";
+import {
+  getOwnerAndAvailable,
+  getVerifiedAddress,
+  typedDataParameters,
+} from "./utils";
 
 vi.mock("@ensdomains/ensjs/public", () => ({
   getAvailable: vi.fn(),
@@ -108,5 +123,74 @@ describe("getOwnerAndAvailable", () => {
       name: "test.eth",
     });
     expect(owner).toBe(null);
+  });
+});
+
+describe("getVerifiedAddress", () => {
+  const account = mnemonicToAccount(
+    "test test test test test test test test test test test junk"
+  );
+  const server = createAnvil({ port: 8552 });
+
+  beforeAll(async () => {
+    await server.start();
+  });
+  afterAll(async () => {
+    await server.stop();
+  });
+
+  test("return address for valid sig", async () => {
+    const unverifiedAddress = account.address;
+    const expiry = `${Date.now() + 1000 * 60 * 60 * 24 * 7}`;
+    const hash = padHex("0x00", { size: 32 });
+    const name = "test.eth";
+    const sig = await account.signTypedData({
+      ...typedDataParameters,
+      message: {
+        upload: "avatar",
+        expiry,
+        name,
+        hash,
+      },
+    });
+
+    const verifiedAddress = await getVerifiedAddress({
+      env: {
+        WEB3_ENDPOINT_MAP: JSON.stringify({
+          mainnet: `http://${server.host}:${server.port}`,
+        }),
+      } as any,
+      chain: getChainFromNetwork("mainnet")!,
+      sig,
+      expiry,
+      name,
+      hash,
+      unverifiedAddress,
+    });
+
+    expect(verifiedAddress).toBe(unverifiedAddress);
+  });
+  test("return null for invalid sig", async () => {
+    const unverifiedAddress = account.address;
+    const expiry = `${Date.now() + 1000 * 60 * 60 * 24 * 7}`;
+    const hash = padHex("0x00", { size: 32 });
+    const name = "test.eth";
+    const sig = padHex("0x01", { size: 32 });
+
+    const verifiedAddress = await getVerifiedAddress({
+      env: {
+        WEB3_ENDPOINT_MAP: JSON.stringify({
+          mainnet: `http://${server.host}:${server.port}`,
+        }),
+      } as any,
+      chain: getChainFromNetwork("mainnet")!,
+      sig,
+      expiry,
+      name,
+      hash,
+      unverifiedAddress,
+    });
+
+    expect(verifiedAddress).toBe(null);
   });
 });
