@@ -1,13 +1,15 @@
 import { sha256 } from "@noble/hashes/sha256";
+import { createAnvil } from "@viem/anvil";
 import { describe } from "test/globals";
 import { bytesToHex } from "viem";
 import { mnemonicToAccount } from "viem/accounts";
-import { expect, test, vi } from "vitest";
-import { Network, ValidatedRequest } from "./chains";
+import { afterAll, beforeAll, expect, test, vi } from "vitest";
+import { Network, ValidatedRequest, getChainFromNetwork } from "./chains";
 import { handlePut } from "./put";
 import { getOwnerAndAvailable } from "./utils";
 
-vi.mock("./utils", () => ({
+vi.mock("./utils", async (importActual) => ({
+  ...(await importActual<object>()),
   getOwnerAndAvailable: vi.fn(),
 }));
 
@@ -28,6 +30,8 @@ const walletAddress = account.address;
 
 const makeHash = (dataURL: string) =>
   bytesToHex(sha256(dataURLToBytes(dataURL).bytes));
+
+const server = createAnvil({ port: 8551 });
 
 const makeSig = ({
   upload = "avatar",
@@ -86,9 +90,23 @@ const createRequest = ({
     {
       name,
       network,
-      chain: {} as any,
+      chain: getChainFromNetwork(network)!,
     } as ValidatedRequest
   );
+
+const getEnv = () => ({
+  ...getMiniflareBindings(),
+  WEB3_ENDPOINT_MAP: JSON.stringify({
+    mainnet: `http://${server.host}:${server.port}`,
+  }),
+});
+
+beforeAll(async () => {
+  await server.start();
+});
+afterAll(async () => {
+  await server.stop();
+});
 
 describe("put", () => {
   test("upload image", async () => {
@@ -105,11 +123,12 @@ describe("put", () => {
         expiry,
         dataURL,
         sig: await makeSig({ dataURL }),
+        unverifiedAddress: walletAddress,
       },
       method: "PUT",
     });
 
-    const response = await handlePut(request, getMiniflareBindings() as any);
+    const response = await handlePut(request, getEnv());
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchInlineSnapshot(`
       {
@@ -138,11 +157,12 @@ describe("put", () => {
         expiry,
         dataURL,
         sig: await makeSig({ dataURL }),
+        unverifiedAddress: walletAddress,
       },
       method: "PUT",
     });
 
-    const response = await handlePut(request, getMiniflareBindings() as any);
+    const response = await handlePut(request, getEnv());
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchInlineSnapshot(`
       {
@@ -168,11 +188,12 @@ describe("put", () => {
         expiry,
         dataURL,
         sig: "0x1234",
+        unverifiedAddress: walletAddress,
       },
       method: "PUT",
     });
 
-    const response = await handlePut(request, getMiniflareBindings() as any);
+    const response = await handlePut(request, getEnv());
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchInlineSnapshot(`
       {
@@ -195,11 +216,12 @@ describe("put", () => {
         expiry,
         dataURL,
         sig: await makeSig({ dataURL }),
+        unverifiedAddress: walletAddress,
       },
       method: "PUT",
     });
 
-    const response = await handlePut(request, getMiniflareBindings() as any);
+    const response = await handlePut(request, getEnv());
     expect(response.status).toBe(413);
     expect(await response.json()).toMatchInlineSnapshot(`
       {
@@ -222,11 +244,12 @@ describe("put", () => {
         expiry,
         dataURL,
         sig: await makeSig({ dataURL }),
+        unverifiedAddress: walletAddress,
       },
       method: "PUT",
     });
 
-    const response = await handlePut(request, getMiniflareBindings() as any);
+    const response = await handlePut(request, getEnv());
 
     expect(response.status).toBe(403);
     expect(await response.json()).toMatchInlineSnapshot(`
@@ -250,11 +273,12 @@ describe("put", () => {
         expiry: "1",
         dataURL,
         sig: await makeSig({ dataURL, expiry: "1" }),
+        unverifiedAddress: walletAddress,
       },
       method: "PUT",
     });
 
-    const response = await handlePut(request, getMiniflareBindings() as any);
+    const response = await handlePut(request, getEnv());
 
     expect(response.status).toBe(403);
     expect(await response.json()).toMatchInlineSnapshot(`
@@ -278,11 +302,12 @@ describe("put", () => {
         expiry,
         dataURL,
         sig: await makeSig({ dataURL }),
+        unverifiedAddress: walletAddress,
       },
       method: "PUT",
     });
 
-    const response = await handlePut(request, getMiniflareBindings() as any);
+    const response = await handlePut(request, getEnv());
 
     expect(response.status).toBe(415);
     expect(await response.json()).toMatchInlineSnapshot(`
@@ -301,16 +326,40 @@ describe("put", () => {
         expiry,
         dataURL,
         sig: await makeSig({ dataURL, name: "teSt.eth" }),
+        unverifiedAddress: walletAddress,
       },
       method: "PUT",
     });
 
-    const response = await handlePut(request, getMiniflareBindings() as any);
+    const response = await handlePut(request, getEnv());
 
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchInlineSnapshot(`
       {
         "error": "Name must be in normalized form",
+        "status": 400,
+      }
+    `);
+  });
+  test("return error when unverifiedAddress is not provided", async () => {
+    const dataURL = "data:image/jpeg;base64,test123123";
+
+    const request = createRequest({
+      name: "test.eth",
+      body: {
+        expiry,
+        dataURL,
+        sig: await makeSig({ dataURL }),
+      },
+      method: "PUT",
+    });
+
+    const response = await handlePut(request, getEnv());
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchInlineSnapshot(`
+      {
+        "error": "Request is missing parameters",
         "status": 400,
       }
     `);
