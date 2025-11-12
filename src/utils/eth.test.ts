@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
   createTestUploadData,
   TEST_ACCOUNT,
-  TEST_PUBLIC_CLIENT,
+  TEST_CLIENT,
 } from "@test/setup/helpers";
 
 import { getVerifiedAddress, typedDataParameters } from "@/utils/eth";
@@ -34,7 +34,7 @@ describe("getVerifiedAddress", () => {
 
     // Act
     const result = await getVerifiedAddress({
-      client: TEST_PUBLIC_CLIENT,
+      client: TEST_CLIENT,
       sig,
       expiry,
       name: TEST_NAME,
@@ -68,7 +68,7 @@ describe("getVerifiedAddress", () => {
 
     // Act
     const result = await getVerifiedAddress({
-      client: TEST_PUBLIC_CLIENT,
+      client: TEST_CLIENT,
       sig: "0x0",
       expiry,
       name: TEST_NAME,
@@ -107,7 +107,7 @@ describe("getVerifiedAddress", () => {
 
     // Act
     const result = await getVerifiedAddress({
-      client: TEST_PUBLIC_CLIENT,
+      client: TEST_CLIENT,
       sig,
       expiry,
       name: TEST_NAME,
@@ -137,7 +137,7 @@ describe("getVerifiedAddress", () => {
 
     // Act
     const result = await getVerifiedAddress({
-      client: TEST_PUBLIC_CLIENT,
+      client: TEST_CLIENT,
       sig,
       expiry,
       name: TEST_NAME,
@@ -163,7 +163,7 @@ describe("getVerifiedAddress", () => {
 
     // Act
     const result = await getVerifiedAddress({
-      client: TEST_PUBLIC_CLIENT,
+      client: TEST_CLIENT,
       sig,
       expiry,
       name: TEST_NAME,
@@ -200,7 +200,7 @@ describe("getVerifiedAddress", () => {
 
     // Act - Use real verification
     const result = await getVerifiedAddress({
-      client: TEST_PUBLIC_CLIENT,
+      client: TEST_CLIENT,
       sig,
       expiry,
       name: TEST_NAME,

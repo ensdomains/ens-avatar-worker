@@ -1,7 +1,6 @@
-import { type Address, type Client, getAddress, type Hex } from "viem";
+import type { ClientWithEns } from "@ensdomains/ensjs/contracts";
+import { type Address, getAddress, type Hex } from "viem";
 import { verifyTypedData } from "viem/actions";
-
-import type { EnsPublicClient } from "./chains";
 
 export const typedDataParameters = {
   domain: {
@@ -28,7 +27,7 @@ export const getVerifiedAddress = async ({
   unverifiedAddress,
   uploadType,
 }: {
-  client: EnsPublicClient;
+  client: ClientWithEns;
   sig: Hex;
   expiry: string;
   name: string;
@@ -38,7 +37,7 @@ export const getVerifiedAddress = async ({
 }) => {
   const address = getAddress(unverifiedAddress);
 
-  const valid = await verifyTypedData(client as Client, {
+  const valid = await verifyTypedData(client, {
     ...typedDataParameters,
     address,
     signature: sig,

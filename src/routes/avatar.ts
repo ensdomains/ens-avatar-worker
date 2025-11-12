@@ -6,10 +6,12 @@ import { normalize } from "viem/ens";
 import { clientMiddleware, type NetworkMiddlewareEnv } from "@/utils/chains";
 import { dataURLToBytes, R2GetOrHead } from "@/utils/data";
 import { getVerifiedAddress } from "@/utils/eth";
+import { addImageResponseHeaders } from "@/utils/headers";
 import { createApp } from "@/utils/hono";
 import {
   findAndPromoteUnregisteredMedia,
   MEDIA_BUCKET_KEY,
+  uploadMediaAndCleanupExpired,
 } from "@/utils/media";
 import { getOwnerAndAvailable } from "@/utils/owner";
 import { isParentOwner, isSubname } from "@/utils/subname";
@@ -53,8 +55,8 @@ router.get("/:name", clientMiddleware, async (c) => {
     existingAvatarFile &&
     existingAvatarFile.httpMetadata?.contentType === "image/jpeg"
   ) {
-    c.header("Content-Type", "image/jpeg");
-    c.header("Content-Length", existingAvatarFile.size.toString());
+    addImageResponseHeaders({ c, size: existingAvatarFile.size.toString() });
+
     return c.body(existingAvatarFile.body);
   }
 
@@ -67,8 +69,10 @@ router.get("/:name", clientMiddleware, async (c) => {
   });
 
   if (unregisteredAvatar) {
-    c.header("Content-Type", "image/jpeg");
-    c.header("Content-Length", unregisteredAvatar.file.size.toString());
+    addImageResponseHeaders({
+      c,
+      size: unregisteredAvatar.file.size.toString(),
+    });
 
     if (isHead) return c.body(null);
     return c.body(unregisteredAvatar.body);
@@ -143,20 +147,19 @@ router.put(
       return c.text("Signature expired", 403);
     }
 
-    const bucket = c.env.AVATAR_BUCKET;
-    const key = available
-      ? MEDIA_BUCKET_KEY.unregistered(network, name, verifiedAddress)
-      : MEDIA_BUCKET_KEY.registered(network, name);
-
-    const uploaded = await bucket.put(key, bytes, {
-      httpMetadata: { contentType: "image/jpeg" },
+    const didUpload = await uploadMediaAndCleanupExpired({
+      env: c.env,
+      network,
+      name,
+      mediaType: "avatar",
+      bytes,
+      verifiedAddress,
+      available,
     });
 
-    if (uploaded.key === key) {
-      return c.json({ message: "uploaded" }, 200);
-    } else {
-      return c.text(`${name} not uploaded`, 500);
-    }
+    if (didUpload) return c.json({ message: "uploaded" }, 200);
+
+    return c.text(`${name} not uploaded`, 500);
   },
 );
 

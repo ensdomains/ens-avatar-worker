@@ -1,18 +1,19 @@
-import type { EnsPublicClient } from "./chains";
+import type { ClientWithEns } from "@ensdomains/ensjs/contracts";
+import { getAvailable, getOwner } from "@ensdomains/ensjs/public";
 
 export const getOwnerAndAvailable = async ({
   client,
   name,
 }: {
-  client: EnsPublicClient;
+  client: ClientWithEns;
   name: string;
 }) => {
   const labels = name.split(".");
   const is2LDDotEth = labels.length === 2 && labels.at(-1) === "eth";
 
   const [ownership, available] = await Promise.all([
-    client.getOwner({ name }),
-    is2LDDotEth ? client.getAvailable({ name }) : undefined,
+    getOwner(client, { name }),
+    is2LDDotEth ? getAvailable(client, { name }) : undefined,
   ]);
 
   return {

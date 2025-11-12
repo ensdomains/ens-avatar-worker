@@ -1,4 +1,7 @@
-import type { EnsPublicClient, Network } from "./chains";
+import type { ClientWithEns } from "@ensdomains/ensjs/contracts";
+import type { Address } from "viem";
+
+import type { Network } from "./chains";
 import { getOwnerAndAvailable } from "./owner";
 
 export type MediaType = "avatar" | "header";
@@ -53,7 +56,7 @@ export const findAndPromoteUnregisteredMedia = async ({
   mediaType,
 }: {
   env: Env;
-  client: EnsPublicClient;
+  client: ClientWithEns;
   network: Network;
   name: string;
   mediaType: MediaType;
@@ -105,4 +108,41 @@ export const findAndPromoteUnregisteredMedia = async ({
     file: unregisteredMediaFile,
     body: b2,
   };
+};
+
+export const uploadMediaAndCleanupExpired = async ({
+  env,
+  network,
+  name,
+  mediaType,
+  bytes,
+  verifiedAddress,
+  available,
+}: {
+  env: Env;
+  network: Network;
+  name: string;
+  mediaType: MediaType;
+  verifiedAddress: Address;
+  available: boolean;
+  bytes: Uint8Array;
+}) => {
+  const bucket = getMediaBucket(env, mediaType);
+
+  if (available) {
+    // we can cleanup registered media safely because we know the name is available (expired)
+    await bucket.delete(MEDIA_BUCKET_KEY.registered(network, name));
+  }
+
+  const key = available
+    ? MEDIA_BUCKET_KEY.unregistered(network, name, verifiedAddress)
+    : MEDIA_BUCKET_KEY.registered(network, name);
+
+  const uploaded = await bucket.put(key, bytes, {
+    httpMetadata: { contentType: "image/jpeg" },
+  });
+
+  if (uploaded.key === key) return true;
+
+  return false;
 };

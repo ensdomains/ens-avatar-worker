@@ -1,9 +1,9 @@
 import { env } from "cloudflare:test";
+import type { ClientWithEns } from "@ensdomains/ensjs/contracts";
 import { assert, beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { ModuleMock } from "@test/setup/meta";
 
-import type { EnsPublicClient } from "@/utils/chains";
 import type { MediaType } from "@/utils/media";
 import * as media from "@/utils/media";
 import * as owner from "@/utils/owner";
@@ -50,10 +50,7 @@ describe("findAndPromoteUnregisteredMedia", () => {
     name: "helgesson.eth",
   } as const;
 
-  const mockClient = {
-    getOwner: vi.fn(),
-    getAvailable: vi.fn(),
-  } satisfies Partial<EnsPublicClient> as unknown as EnsPublicClient;
+  const mockClient = {} as unknown as ClientWithEns;
 
   beforeEach(() => {
     // Reset mocks

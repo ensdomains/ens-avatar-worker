@@ -1,13 +1,9 @@
-import {
-  addEnsContracts,
-  type createEnsPublicClient,
-  ensPublicActions,
-  ensSubgraphActions,
-} from "@ensdomains/ensjs";
+import { addEnsContracts } from "@ensdomains/ensjs";
+import type { ClientWithEns } from "@ensdomains/ensjs/contracts";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { createClient, http } from "viem";
-import { goerli, holesky, mainnet, sepolia } from "viem/chains";
+import { holesky, mainnet, sepolia } from "viem/chains";
 
 import { getErrorMessage } from "./error";
 import type { BaseEnv } from "./hono";
@@ -15,7 +11,6 @@ import { addLocalhostEnsContracts } from "./localhost-chain";
 
 const baseChains = [
   addEnsContracts(mainnet),
-  addEnsContracts(goerli),
   addEnsContracts(sepolia),
   addEnsContracts(holesky),
 ] as const;
@@ -26,13 +21,7 @@ export const chains = baseChains;
 export type Chain =
   | (typeof baseChains)[number]
   | ReturnType<typeof addLocalhostEnsContracts>;
-export type Network =
-  | "mainnet"
-  | "goerli"
-  | "sepolia"
-  | "holesky"
-  | "localhost";
-export type EnsPublicClient = ReturnType<typeof createEnsPublicClient>;
+export type Network = "mainnet" | "sepolia" | "holesky" | "localhost";
 
 const isDev = (c: Context<BaseEnv & NetworkMiddlewareEnv, string, object>) =>
   c.env.ENVIRONMENT === "dev";
@@ -86,7 +75,7 @@ export const networkMiddleware = createMiddleware<
 
 export type ClientMiddlewareEnv = NetworkMiddlewareEnv & {
   Variables: {
-    client: EnsPublicClient;
+    client: ClientWithEns;
   };
 };
 export const clientMiddleware = createMiddleware<BaseEnv & ClientMiddlewareEnv>(
@@ -96,16 +85,10 @@ export const clientMiddleware = createMiddleware<BaseEnv & ClientMiddlewareEnv>(
       string
     >;
 
-    // Did not use createEnsPublicClinet because it does not support localhost
     const client = createClient({
       chain: c.var.chain,
-      key: "ensPublic",
-      name: "ENS Public Client",
       transport: http(endpointMap[c.var.network]),
-      type: "ensPublicClient",
-    })
-      .extend(ensPublicActions)
-      .extend(ensSubgraphActions) as EnsPublicClient;
+    });
 
     c.set("client", client);
 

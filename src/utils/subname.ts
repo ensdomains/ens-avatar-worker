@@ -1,6 +1,6 @@
+import type { ClientWithEns } from "@ensdomains/ensjs/contracts";
+import { getOwner } from "@ensdomains/ensjs/public";
 import type { Address } from "viem";
-
-import type { EnsPublicClient } from "./chains";
 
 export const isSubname = (name: string) => {
   return name.split(".").length > 2;
@@ -12,10 +12,10 @@ export const isParentOwner = async ({
   verifiedAddress,
 }: {
   name: string;
-  client: EnsPublicClient;
+  client: ClientWithEns;
   verifiedAddress: Address;
 }) => {
-  const parentOwner = await client.getOwner({
+  const parentOwner = await getOwner(client, {
     name: name.split(".").slice(1).join("."),
   });
   return parentOwner?.owner?.toLowerCase() === verifiedAddress.toLowerCase();

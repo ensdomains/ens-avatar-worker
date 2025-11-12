@@ -1,28 +1,20 @@
-import {
-  createEnsPublicClient,
-  createEnsWalletClient,
-} from "@ensdomains/ensjs";
-import { type Address, type Hex, http } from "viem";
+import { addEnsContracts } from "@ensdomains/ensjs";
+import { type Address, createClient, type Hex, http } from "viem";
 import { mnemonicToAccount } from "viem/accounts";
 import { mainnet } from "viem/chains";
 
-import type { EnsPublicClient } from "@/utils/chains";
 import { typedDataParameters } from "@/utils/eth";
 
 export const TEST_ACCOUNT = mnemonicToAccount(
   "test test test test test test test test test test test junk",
 );
 
-export const TEST_WALLET_CLIENT = createEnsWalletClient({
-  account: TEST_ACCOUNT,
-  chain: mainnet,
+const mainnetWithEns = addEnsContracts(mainnet);
+
+export const TEST_CLIENT = createClient({
+  chain: mainnetWithEns,
   transport: http(),
 });
-
-export const TEST_PUBLIC_CLIENT = createEnsPublicClient({
-  chain: mainnet,
-  transport: http(),
-}) as EnsPublicClient;
 
 /**
  * Creates test data for avatar/header upload testing
@@ -51,7 +43,7 @@ export const createTestUploadData = async (
     hash,
   };
 
-  const signature = await TEST_WALLET_CLIENT.signTypedData({
+  const signature = await TEST_ACCOUNT.signTypedData({
     ...typedDataParameters,
     message,
   });
