@@ -10,7 +10,8 @@ const PROD_ALLOWED_ORIGIN_SUFFIXES = [
   "ens-cf.workers.dev",
   "ens-app-v3.pages.dev",
   "grails.app",
-  "efp.app"
+  "efp.app",
+  "ethleaderboard.com"
 ] as const;
 
 const app = createApp();
