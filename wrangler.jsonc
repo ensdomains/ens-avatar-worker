@@ -3,6 +3,7 @@
     "name": "avatar-upload",
     "main": "src/index.ts",
     "compatibility_date": "2025-02-18",
+    "keep_vars": true,
     // "compatibility_flags": [
     //   "nodejs_compat"
     // ],
@@ -32,11 +33,33 @@
     },
     "env": {
         "staging": {
+            "name": "avatar-upload-staging",
+            "r2_buckets": [
+                {
+                    "binding": "AVATAR_BUCKET",
+                    "bucket_name": "avatar-storage"
+                },
+                {
+                    "binding": "HEADER_BUCKET",
+                    "bucket_name": "header-storage"
+                }
+            ],
             "vars": {
                 "ENVIRONMENT": "staging"
             }
         },
         "production": {
+            "name": "avatar-upload",
+            "r2_buckets": [
+                {
+                    "binding": "AVATAR_BUCKET",
+                    "bucket_name": "avatar-storage"
+                },
+                {
+                    "binding": "HEADER_BUCKET",
+                    "bucket_name": "header-storage"
+                }
+            ],
             "vars": {
                 "ENVIRONMENT": "production"
             }
