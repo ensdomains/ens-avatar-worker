@@ -1,5 +1,5 @@
+import type { Address, Chain } from "viem";
 import { localhost } from "viem/chains";
-import type { Chain, Address } from "viem";
 
 // Add ENS contracts to localhost chain for development
 export const addLocalhostEnsContracts = (env: Env): Chain => {
@@ -9,8 +9,10 @@ export const addLocalhostEnsContracts = (env: Env): Chain => {
     LOCALHOST_ENS_NAME_WRAPPER: env.LOCALHOST_ENS_NAME_WRAPPER,
     LOCALHOST_ENS_UNIVERSAL_RESOLVER: env.LOCALHOST_ENS_UNIVERSAL_RESOLVER,
     LOCALHOST_ENS_PUBLIC_RESOLVER: env.LOCALHOST_ENS_PUBLIC_RESOLVER,
-    LOCALHOST_ENS_BASE_REGISTRAR_IMPLEMENTATION: env.LOCALHOST_ENS_BASE_REGISTRAR_IMPLEMENTATION,
-    LOCALHOST_ENS_ETH_REGISTRAR_CONTROLLER: env.LOCALHOST_ENS_ETH_REGISTRAR_CONTROLLER,
+    LOCALHOST_ENS_BASE_REGISTRAR_IMPLEMENTATION:
+      env.LOCALHOST_ENS_BASE_REGISTRAR_IMPLEMENTATION,
+    LOCALHOST_ENS_ETH_REGISTRAR_CONTROLLER:
+      env.LOCALHOST_ENS_ETH_REGISTRAR_CONTROLLER,
     LOCALHOST_ENS_REVERSE_REGISTRAR: env.LOCALHOST_ENS_REVERSE_REGISTRAR,
     LOCALHOST_MULTICALL3: env.LOCALHOST_MULTICALL3,
   };
@@ -22,7 +24,9 @@ export const addLocalhostEnsContracts = (env: Env): Chain => {
     .map(([name]) => name);
 
   if (missingContracts.length > 0) {
-    throw new Error(`Missing required localhost ENS contract addresses: ${missingContracts.join(", ")}`);
+    throw new Error(
+      `Missing required localhost ENS contract addresses: ${missingContracts.join(", ")}`,
+    );
   }
 
   return {

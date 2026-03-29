@@ -1,13 +1,17 @@
-import { addEnsContracts, createEnsPublicClient } from "@ensdomains/ensjs";
-import { mainnet, goerli, sepolia, holesky } from "viem/chains";
-import { BaseEnv } from "./hono";
+import {
+  addEnsContracts,
+  type createEnsPublicClient,
+  ensPublicActions,
+  ensSubgraphActions,
+} from "@ensdomains/ensjs";
+import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
-import { http } from "viem";
-import { addLocalhostEnsContracts } from "./localhost-chain";
-import { ensPublicActions, ensSubgraphActions } from "@ensdomains/ensjs";
-import { createClient } from "viem";
-import { Context } from "hono";
+import { createClient, http } from "viem";
+import { goerli, holesky, mainnet, sepolia } from "viem/chains";
+
 import { getErrorMessage } from "./error";
+import type { BaseEnv } from "./hono";
+import { addLocalhostEnsContracts } from "./localhost-chain";
 
 const baseChains = [
   addEnsContracts(mainnet),
@@ -22,10 +26,16 @@ export const chains = baseChains;
 export type Chain =
   | (typeof baseChains)[number]
   | ReturnType<typeof addLocalhostEnsContracts>;
-export type Network = "mainnet" | "goerli" | "sepolia" | "holesky" | "localhost";
+export type Network =
+  | "mainnet"
+  | "goerli"
+  | "sepolia"
+  | "holesky"
+  | "localhost";
 export type EnsPublicClient = ReturnType<typeof createEnsPublicClient>;
 
-const isDev = (c: Context<BaseEnv & NetworkMiddlewareEnv, string, object>) => c.env.ENVIRONMENT === "dev";
+const isDev = (c: Context<BaseEnv & NetworkMiddlewareEnv, string, object>) =>
+  c.env.ENVIRONMENT === "dev";
 
 export const getChainFromNetwork = (
   _network: string,
@@ -39,7 +49,7 @@ export const getChainFromNetwork = (
   }
 
   const network = lowercased === "mainnet" ? "ethereum" : lowercased;
-  return chains.find(chain => chain.name.toLowerCase() === network);
+  return chains.find((chain) => chain.name.toLowerCase() === network);
 };
 
 export type NetworkMiddlewareEnv = {
@@ -56,7 +66,8 @@ export const networkMiddleware = createMiddleware<
     const network = c.req.param("network")?.toLowerCase() ?? "mainnet";
 
     // Check if localhost is being accessed in non-dev mode
-    if (network === "localhost" && !isDev(c)) throw new Error("localhost is only available in development mode");
+    if (network === "localhost" && !isDev(c))
+      throw new Error("localhost is only available in development mode");
 
     const chain = getChainFromNetwork(network, c);
 
@@ -68,8 +79,7 @@ export const networkMiddleware = createMiddleware<
     c.set("network", network as Network);
 
     await next();
-  }
-  catch (e) {
+  } catch (e) {
     return c.text(getErrorMessage(e, "Network middleware error: "), 400);
   }
 });

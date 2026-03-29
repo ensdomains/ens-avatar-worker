@@ -1,4 +1,4 @@
-import { EnsPublicClient } from "./chains";
+import type { EnsPublicClient } from "./chains";
 
 export const getOwnerAndAvailable = async ({
   client,

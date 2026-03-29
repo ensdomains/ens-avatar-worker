@@ -1,4 +1,4 @@
-import { EnsPublicClient, Network } from "./chains";
+import type { EnsPublicClient, Network } from "./chains";
 import { getOwnerAndAvailable } from "./owner";
 
 export type MediaType = "avatar" | "header";
@@ -15,11 +15,9 @@ export const MEDIA_BUCKET_KEY = {
 export const getMediaBucket = (env: Env, mediaType: MediaType) => {
   if (mediaType === "avatar") {
     return env.AVATAR_BUCKET;
-  }
-  else if (mediaType === "header") {
+  } else if (mediaType === "header") {
     return env.HEADER_BUCKET;
-  }
-  else {
+  } else {
     throw new Error(`Invalid media type: ${mediaType}`);
   }
 };
@@ -68,7 +66,9 @@ export const findAndPromoteUnregisteredMedia = async ({
 
   const bucket = getMediaBucket(env, mediaType);
 
-  const unregisteredMediaFile = await bucket.get(MEDIA_BUCKET_KEY.unregistered(network, name, owner));
+  const unregisteredMediaFile = await bucket.get(
+    MEDIA_BUCKET_KEY.unregistered(network, name, owner),
+  );
 
   if (!unregisteredMediaFile) {
     return;
@@ -80,7 +80,7 @@ export const findAndPromoteUnregisteredMedia = async ({
     httpMetadata: unregisteredMediaFile.httpMetadata,
   });
 
-  let cursor: string | undefined = undefined;
+  let cursor: string | undefined;
 
   while (true) {
     const { objects, ...rest } = await bucket.list({
@@ -96,8 +96,7 @@ export const findAndPromoteUnregisteredMedia = async ({
     await bucket.delete(fileKeys);
     if (rest.truncated) {
       cursor = rest.cursor;
-    }
-    else {
+    } else {
       break;
     }
   }

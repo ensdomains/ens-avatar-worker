@@ -1,17 +1,17 @@
 import { vValidator } from "@hono/valibot-validator";
 import * as v from "valibot";
-import { createApp } from "@/utils/hono";
-import { clientMiddleware, NetworkMiddlewareEnv } from "@/utils/chains";
-import { Address, isAddress, sha256 } from "viem";
-import { Hex } from "viem";
+import { type Address, type Hex, isAddress, sha256 } from "viem";
 import { normalize } from "viem/ens";
-import { getVerifiedAddress } from "@/utils/eth";
-import { getOwnerAndAvailable } from "@/utils/owner";
+
+import { clientMiddleware, type NetworkMiddlewareEnv } from "@/utils/chains";
 import { dataURLToBytes, R2GetOrHead } from "@/utils/data";
+import { getVerifiedAddress } from "@/utils/eth";
+import { createApp } from "@/utils/hono";
 import {
   findAndPromoteUnregisteredMedia,
   MEDIA_BUCKET_KEY,
 } from "@/utils/media";
+import { getOwnerAndAvailable } from "@/utils/owner";
 import { isParentOwner, isSubname } from "@/utils/subname";
 
 const router = createApp<NetworkMiddlewareEnv>();
@@ -50,8 +50,8 @@ router.get("/:name", clientMiddleware, async (c) => {
   );
 
   if (
-    existingAvatarFile
-    && existingAvatarFile.httpMetadata?.contentType === "image/jpeg"
+    existingAvatarFile &&
+    existingAvatarFile.httpMetadata?.contentType === "image/jpeg"
   ) {
     c.header("Content-Type", "image/jpeg");
     c.header("Content-Length", existingAvatarFile.size.toString());
@@ -121,8 +121,7 @@ router.put(
     if (!available) {
       if (!owner) {
         return c.text("Name not found", 404);
-      }
-      else if (verifiedAddress !== owner) {
+      } else if (verifiedAddress !== owner) {
         return c.text(
           `Address ${verifiedAddress} is not the owner of ${name}`,
           403,
@@ -130,7 +129,10 @@ router.put(
       }
     }
     // Check that user is the parent owner of the name if it is a subname and not available
-    else if (isSubname(name) && !(await isParentOwner({ name, client, verifiedAddress }))) {
+    else if (
+      isSubname(name) &&
+      !(await isParentOwner({ name, client, verifiedAddress }))
+    ) {
       return c.text(
         `Address ${verifiedAddress} is not the parent owner of ${name}`,
         403,
@@ -152,8 +154,7 @@ router.put(
 
     if (uploaded.key === key) {
       return c.json({ message: "uploaded" }, 200);
-    }
-    else {
+    } else {
       return c.text(`${name} not uploaded`, 500);
     }
   },

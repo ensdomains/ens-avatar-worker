@@ -1,6 +1,7 @@
-import { Address, Client, getAddress, Hex } from "viem";
-import { EnsPublicClient } from "./chains";
+import { type Address, type Client, getAddress, type Hex } from "viem";
 import { verifyTypedData } from "viem/actions";
+
+import type { EnsPublicClient } from "./chains";
 
 export const typedDataParameters = {
   domain: {

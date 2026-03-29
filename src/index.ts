@@ -1,8 +1,9 @@
-import { createApp } from "./utils/hono";
-import { NetworkMiddlewareEnv, networkMiddleware } from "./utils/chains";
+import { cors } from "hono/cors";
+
 import avatarRouter from "./routes/avatar";
 import headerRouter from "./routes/header";
-import { cors } from "hono/cors";
+import { type NetworkMiddlewareEnv, networkMiddleware } from "./utils/chains";
+import { createApp } from "./utils/hono";
 
 const PROD_ALLOWED_ORIGIN_SUFFIXES = [
   "ens.domains",
@@ -33,8 +34,7 @@ app.use(
           if (PROD_ALLOWED_ORIGIN_SUFFIXES.some(suffix => allows(hostname, suffix))) {
             return requestOrigin; // reflect approved origin
           }
-        }
-        catch {
+        } catch {
           // If it's not a valid URL, deny
         }
         return ""; // empty => disallowed

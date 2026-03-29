@@ -1,12 +1,13 @@
-import { EnsPublicClient } from "@/utils/chains";
-import { typedDataParameters } from "@/utils/eth";
-import { createEnsPublicClient, createEnsWalletClient } from "@ensdomains/ensjs";
-import { Address, Hex, http } from "viem";
-
 import {
-  mnemonicToAccount,
-} from "viem/accounts";
+  createEnsPublicClient,
+  createEnsWalletClient,
+} from "@ensdomains/ensjs";
+import { type Address, type Hex, http } from "viem";
+import { mnemonicToAccount } from "viem/accounts";
 import { mainnet } from "viem/chains";
+
+import type { EnsPublicClient } from "@/utils/chains";
+import { typedDataParameters } from "@/utils/eth";
 
 export const TEST_ACCOUNT = mnemonicToAccount(
   "test test test test test test test test test test test junk",

@@ -1,19 +1,25 @@
-import { describe, expect, test, vi, beforeEach, assert } from "vitest";
-import * as media from "@/utils/media";
-import * as eth from "@/utils/eth";
-import * as owner from "@/utils/owner";
-import * as data from "@/utils/data";
-import { ModuleMock } from "@test/setup/meta";
 import { env } from "cloudflare:test";
 import { normalize } from "viem/ens";
-import app from "@/index";
-import { createTestUploadData, TEST_ACCOUNT } from "@test/setup/helpers";
 import { sha256 } from "viem/utils";
+import { assert, beforeEach, describe, expect, test, vi } from "vitest";
+
+import { createTestUploadData, TEST_ACCOUNT } from "@test/setup/helpers";
+import type { ModuleMock } from "@test/setup/meta";
+
+import app from "@/index";
+import * as data from "@/utils/data";
+import * as eth from "@/utils/eth";
+import * as media from "@/utils/media";
+import * as owner from "@/utils/owner";
 
 // Mocks
-vi.mock("@/utils/owner", () => ({
-  getOwnerAndAvailable: vi.fn(),
-}) satisfies ModuleMock<typeof owner>);
+vi.mock(
+  "@/utils/owner",
+  () =>
+    ({
+      getOwnerAndAvailable: vi.fn(),
+    }) satisfies ModuleMock<typeof owner>,
+);
 
 // Test constants
 const MOCK_NAME = "test.eth";
@@ -35,15 +41,22 @@ describe("Header Routes", () => {
     put: vi.spyOn(env.HEADER_BUCKET, "put"),
   };
 
-  const findAndPromoteUnregisteredMediaSpy = vi.spyOn(media, "findAndPromoteUnregisteredMedia");
+  const findAndPromoteUnregisteredMediaSpy = vi.spyOn(
+    media,
+    "findAndPromoteUnregisteredMedia",
+  );
 
   describe("GET /:name/h", () => {
     test("returns 200 with the header image when the header exists in registered storage", async () => {
       // Mock registered header exists
       const imageContent = new Uint8Array([1, 2, 3, 4, 5]);
-      await env.HEADER_BUCKET.put(media.MEDIA_BUCKET_KEY.registered("mainnet", MOCK_NAME), imageContent, {
-        httpMetadata: { contentType: "image/jpeg" },
-      });
+      await env.HEADER_BUCKET.put(
+        media.MEDIA_BUCKET_KEY.registered("mainnet", MOCK_NAME),
+        imageContent,
+        {
+          httpMetadata: { contentType: "image/jpeg" },
+        },
+      );
 
       // Make the request
       const res = await app.request(`/${MOCK_NAME}/h`, {}, env);
@@ -51,7 +64,9 @@ describe("Header Routes", () => {
       // Verify result
       expect(res.status).toBe(200);
       expect(res.headers.get("Content-Type")).toBe("image/jpeg");
-      expect(res.headers.get("Content-Length")).toBe(imageContent.length.toString());
+      expect(res.headers.get("Content-Length")).toBe(
+        imageContent.length.toString(),
+      );
 
       // Verify correct key was used
       expect(bucketSpy.get).toHaveBeenCalledWith(
@@ -67,9 +82,17 @@ describe("Header Routes", () => {
       // Mock unregistered header exists and is promoted
       const imageBuffer = new Uint8Array([10, 20, 30, 40]);
 
-      await env.HEADER_BUCKET.put(media.MEDIA_BUCKET_KEY.unregistered("mainnet", MOCK_NAME, TEST_ACCOUNT.address), imageBuffer, {
-        httpMetadata: { contentType: "image/jpeg" },
-      });
+      await env.HEADER_BUCKET.put(
+        media.MEDIA_BUCKET_KEY.unregistered(
+          "mainnet",
+          MOCK_NAME,
+          TEST_ACCOUNT.address,
+        ),
+        imageBuffer,
+        {
+          httpMetadata: { contentType: "image/jpeg" },
+        },
+      );
 
       vi.mocked(owner.getOwnerAndAvailable).mockResolvedValue({
         owner: TEST_ACCOUNT.address,
@@ -82,7 +105,9 @@ describe("Header Routes", () => {
       // Verify result
       expect(res.status).toBe(200);
       expect(res.headers.get("Content-Type")).toBe("image/jpeg");
-      expect(res.headers.get("Content-Length")).toBe(imageBuffer.length.toString());
+      expect(res.headers.get("Content-Length")).toBe(
+        imageBuffer.length.toString(),
+      );
 
       expect(bucketSpy.get).toHaveBeenCalledWith(
         media.MEDIA_BUCKET_KEY.registered("mainnet", MOCK_NAME),
@@ -97,7 +122,9 @@ describe("Header Routes", () => {
         mediaType: "header",
       });
 
-      const putResult = await env.HEADER_BUCKET.get(media.MEDIA_BUCKET_KEY.registered("mainnet", MOCK_NAME));
+      const putResult = await env.HEADER_BUCKET.get(
+        media.MEDIA_BUCKET_KEY.registered("mainnet", MOCK_NAME),
+      );
 
       assert(putResult);
       expect(putResult.httpMetadata?.contentType).toBe("image/jpeg");
@@ -139,9 +166,13 @@ describe("Header Routes", () => {
     test("returns 200 when using HEAD method with correct headers but no body", async () => {
       // Mock registered header exists
       const imageContent = new Uint8Array([1, 2, 3, 4, 5]);
-      await env.HEADER_BUCKET.put(media.MEDIA_BUCKET_KEY.registered("mainnet", MOCK_NAME), imageContent, {
-        httpMetadata: { contentType: "image/jpeg" },
-      });
+      await env.HEADER_BUCKET.put(
+        media.MEDIA_BUCKET_KEY.registered("mainnet", MOCK_NAME),
+        imageContent,
+        {
+          httpMetadata: { contentType: "image/jpeg" },
+        },
+      );
 
       // Make the HEAD request
       // This tests the HTTP HEAD verb functionality which should return metadata only, not the actual image
@@ -151,7 +182,9 @@ describe("Header Routes", () => {
       // Verify result
       expect(res.status).toBe(200);
       expect(res.headers.get("Content-Type")).toBe("image/jpeg");
-      expect(res.headers.get("Content-Length")).toBe(imageContent.length.toString());
+      expect(res.headers.get("Content-Length")).toBe(
+        imageContent.length.toString(),
+      );
 
       // Verify body is empty for HEAD request
       const buffer = await res.arrayBuffer();
@@ -161,9 +194,13 @@ describe("Header Routes", () => {
     test("updates an existing image with a new one", async () => {
       // Step 1: Put the initial image into storage
       const initialImage = new Uint8Array([1, 2, 3]);
-      await env.HEADER_BUCKET.put(media.MEDIA_BUCKET_KEY.registered("goerli", MOCK_NAME), initialImage, {
-        httpMetadata: { contentType: "image/jpeg" },
-      });
+      await env.HEADER_BUCKET.put(
+        media.MEDIA_BUCKET_KEY.registered("goerli", MOCK_NAME),
+        initialImage,
+        {
+          httpMetadata: { contentType: "image/jpeg" },
+        },
+      );
 
       // Get the initial image
       let res = await app.request(`/goerli/${MOCK_NAME}/h`, {}, env);
@@ -172,14 +209,20 @@ describe("Header Routes", () => {
 
       // Step 2: Put a new image with different content
       const updatedImage = new Uint8Array([4, 5, 6, 7, 8]);
-      await env.HEADER_BUCKET.put(media.MEDIA_BUCKET_KEY.registered("goerli", MOCK_NAME), updatedImage, {
-        httpMetadata: { contentType: "image/jpeg" },
-      });
+      await env.HEADER_BUCKET.put(
+        media.MEDIA_BUCKET_KEY.registered("goerli", MOCK_NAME),
+        updatedImage,
+        {
+          httpMetadata: { contentType: "image/jpeg" },
+        },
+      );
 
       // Verify updated image is returned
       res = await app.request(`/goerli/${MOCK_NAME}/h`, {}, env);
       expect(res.status).toBe(200);
-      expect(res.headers.get("Content-Length")).toBe(updatedImage.length.toString());
+      expect(res.headers.get("Content-Length")).toBe(
+        updatedImage.length.toString(),
+      );
       expect(new Uint8Array(await res.arrayBuffer())).toEqual(updatedImage);
     });
 
@@ -192,17 +235,25 @@ describe("Header Routes", () => {
 
       // Mock registered header exists with wrong content type
       const imageContent = new Uint8Array([1, 2, 3, 4, 5]);
-      await env.HEADER_BUCKET.put(media.MEDIA_BUCKET_KEY.registered("mainnet", MOCK_NAME), imageContent, {
-        httpMetadata: { contentType: "text/html" },
-      });
+      await env.HEADER_BUCKET.put(
+        media.MEDIA_BUCKET_KEY.registered("mainnet", MOCK_NAME),
+        imageContent,
+        {
+          httpMetadata: { contentType: "text/html" },
+        },
+      );
 
       // Make the request
       // NOTE: Using HEAD request here is necessary because R2 objects must be fully consumed in tests,
       // but our handler stops reading the response when content-type doesn't match "image/jpeg".
       // This approach prevents test errors from "unconsumed response" while still testing the behavior.
-      const res = await app.request(`/${MOCK_NAME}/h`, {
-        method: "HEAD",
-      }, env);
+      const res = await app.request(
+        `/${MOCK_NAME}/h`,
+        {
+          method: "HEAD",
+        },
+        env,
+      );
 
       // Verify result - should be 404 since it's not a jpeg
       expect(res.status).toBe(404);
@@ -213,7 +264,10 @@ describe("Header Routes", () => {
       // This test is important to verify the service properly cleans up outdated files
       // when a name transitions from unregistered to registered state
       const imageBuffer = new Uint8Array([10, 20, 30, 40]);
-      const uploaders = Array.from({ length: 5 }, (_, i) => `0x${(i + 1).toString().padStart(40, "0")}` as const);
+      const uploaders = Array.from(
+        { length: 5 },
+        (_, i) => `0x${(i + 1).toString().padStart(40, "0")}` as const,
+      );
 
       // Create unregistered files for all uploaders
       for (const uploader of uploaders) {
@@ -255,13 +309,21 @@ describe("Header Routes", () => {
       const mainnetImage = new Uint8Array([1, 2, 3]);
       const goerliImage = new Uint8Array([4, 5, 6]);
 
-      await env.HEADER_BUCKET.put(media.MEDIA_BUCKET_KEY.registered("mainnet", MOCK_NAME), mainnetImage, {
-        httpMetadata: { contentType: "image/jpeg" },
-      });
+      await env.HEADER_BUCKET.put(
+        media.MEDIA_BUCKET_KEY.registered("mainnet", MOCK_NAME),
+        mainnetImage,
+        {
+          httpMetadata: { contentType: "image/jpeg" },
+        },
+      );
 
-      await env.HEADER_BUCKET.put(media.MEDIA_BUCKET_KEY.registered("goerli", MOCK_NAME), goerliImage, {
-        httpMetadata: { contentType: "image/jpeg" },
-      });
+      await env.HEADER_BUCKET.put(
+        media.MEDIA_BUCKET_KEY.registered("goerli", MOCK_NAME),
+        goerliImage,
+        {
+          httpMetadata: { contentType: "image/jpeg" },
+        },
+      );
 
       // Test mainnet network
       let res = await app.request(`/mainnet/${MOCK_NAME}/h`, {}, env);
@@ -284,24 +346,38 @@ describe("Header Routes", () => {
     // Helper function to perform header uploads with proper signing
     // This abstracts the complexity of creating valid upload requests with signatures
     // and returns the response along with the test data for verification
-    const uploadHeader = async (name: string, dataURL: string, network: string, expiry?: string) => {
+    const uploadHeader = async (
+      name: string,
+      dataURL: string,
+      network: string,
+      expiry?: string,
+    ) => {
       const imageBuffer = data.dataURLToBytes(dataURL).bytes;
       const imageHash = sha256(imageBuffer);
 
-      const testData = await createTestUploadData("header", name, imageHash, expiry);
+      const testData = await createTestUploadData(
+        "header",
+        name,
+        imageHash,
+        expiry,
+      );
 
-      const res = await app.request(`/${network}/${name}/h`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
+      const res = await app.request(
+        `/${network}/${name}/h`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            expiry: testData.expiry,
+            dataURL: dataURL,
+            sig: testData.sig,
+            unverifiedAddress: testData.address,
+          }),
         },
-        body: JSON.stringify({
-          expiry: testData.expiry,
-          dataURL: dataURL,
-          sig: testData.sig,
-          unverifiedAddress: testData.address,
-        }),
-      }, env);
+        env,
+      );
 
       return {
         res,
@@ -319,7 +395,11 @@ describe("Header Routes", () => {
       });
 
       const dataURL = "data:image/jpeg;base64,test123123";
-      const { res, imageBuffer } = await uploadHeader(NORMALIZED_NAME, dataURL, "mainnet");
+      const { res, imageBuffer } = await uploadHeader(
+        NORMALIZED_NAME,
+        dataURL,
+        "mainnet",
+      );
 
       expect(res.status).toBe(200);
       expect(await res.json()).toMatchInlineSnapshot(`
@@ -344,7 +424,11 @@ describe("Header Routes", () => {
       });
 
       const dataURL = "data:image/jpeg;base64,test123123";
-      const { res, imageBuffer } = await uploadHeader(NORMALIZED_NAME, dataURL, "mainnet");
+      const { res, imageBuffer } = await uploadHeader(
+        NORMALIZED_NAME,
+        dataURL,
+        "mainnet",
+      );
 
       expect(res.status).toBe(200);
       expect(await res.json()).toMatchInlineSnapshot(`
@@ -355,7 +439,11 @@ describe("Header Routes", () => {
 
       // Verify the file was uploaded to the unregistered path
       expect(bucketSpy.put).toHaveBeenCalledWith(
-        media.MEDIA_BUCKET_KEY.unregistered("mainnet", NORMALIZED_NAME, TEST_ACCOUNT.address),
+        media.MEDIA_BUCKET_KEY.unregistered(
+          "mainnet",
+          NORMALIZED_NAME,
+          TEST_ACCOUNT.address,
+        ),
         imageBuffer,
         { httpMetadata: { contentType: "image/jpeg" } },
       );
@@ -400,7 +488,12 @@ describe("Header Routes", () => {
       // Using an expired timestamp (past date) for the expiry to trigger the expired signature check
       // This is crucial for preventing replay attacks with old signatures
       const dataURL = "data:image/jpeg;base64,test123123";
-      const { res } = await uploadHeader(NORMALIZED_NAME, dataURL, "mainnet", (Date.now() - 1000).toString());
+      const { res } = await uploadHeader(
+        NORMALIZED_NAME,
+        dataURL,
+        "mainnet",
+        (Date.now() - 1000).toString(),
+      );
 
       expect(await res.text()).toBe("Signature expired");
       expect(res.status).toBe(403);
@@ -420,7 +513,9 @@ describe("Header Routes", () => {
       const { res } = await uploadHeader(NORMALIZED_NAME, dataURL, "mainnet");
 
       expect(res.status).toBe(403);
-      expect(await res.text()).toBe(`Address ${TEST_ACCOUNT.address} is not the owner of ${NORMALIZED_NAME}`);
+      expect(await res.text()).toBe(
+        `Address ${TEST_ACCOUNT.address} is not the owner of ${NORMALIZED_NAME}`,
+      );
 
       // Verify no upload was attempted
       expect(bucketSpy.put).not.toHaveBeenCalled();
@@ -448,7 +543,7 @@ describe("Header Routes", () => {
       const oversizedImageBytes = new Uint8Array(MAX_IMAGE_SIZE + 1);
       const base64 = btoa(
         Array.from(oversizedImageBytes)
-          .map(byte => String.fromCharCode(byte))
+          .map((byte) => String.fromCharCode(byte))
           .join(""),
       );
       const dataURL = `data:image/jpeg;base64,${base64}`;
@@ -484,7 +579,7 @@ describe("Header Routes", () => {
       // Mock upload failure (key mismatch)
       bucketSpy.put.mockResolvedValue({
         key: "wrong-key",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
       const dataURL = "data:image/jpeg;base64,test123123";
@@ -504,11 +599,23 @@ describe("Header Routes", () => {
       // Mock successful upload
       const imageBuffer = new Uint8Array([10, 20, 30, 40]);
 
-      await env.HEADER_BUCKET.put(media.MEDIA_BUCKET_KEY.unregistered(network, NORMALIZED_NAME, TEST_ACCOUNT.address), imageBuffer, {
-        httpMetadata: { contentType: "image/jpeg" },
-      });
+      await env.HEADER_BUCKET.put(
+        media.MEDIA_BUCKET_KEY.unregistered(
+          network,
+          NORMALIZED_NAME,
+          TEST_ACCOUNT.address,
+        ),
+        imageBuffer,
+        {
+          httpMetadata: { contentType: "image/jpeg" },
+        },
+      );
 
-      const dataURL = `data:image/jpeg;base64,${btoa(Array.from(imageBuffer).map(byte => String.fromCharCode(byte)).join(""))}`;
+      const dataURL = `data:image/jpeg;base64,${btoa(
+        Array.from(imageBuffer)
+          .map((byte) => String.fromCharCode(byte))
+          .join(""),
+      )}`;
       const { res } = await uploadHeader(NORMALIZED_NAME, dataURL, network);
 
       expect(res.status).toBe(200);
@@ -526,21 +633,29 @@ describe("Header Routes", () => {
       const imageBuffer = data.dataURLToBytes(dataURL).bytes;
       const imageHash = sha256(imageBuffer);
 
-      const testData = await createTestUploadData("header", NORMALIZED_NAME, imageHash);
+      const testData = await createTestUploadData(
+        "header",
+        NORMALIZED_NAME,
+        imageHash,
+      );
 
       // Create a request without unverifiedAddress
-      const res = await app.request(`/mainnet/${NORMALIZED_NAME}/h`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
+      const res = await app.request(
+        `/mainnet/${NORMALIZED_NAME}/h`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            expiry: testData.expiry,
+            dataURL: dataURL,
+            sig: testData.sig,
+            // unverifiedAddress is intentionally omitted
+          }),
         },
-        body: JSON.stringify({
-          expiry: testData.expiry,
-          dataURL: dataURL,
-          sig: testData.sig,
-          // unverifiedAddress is intentionally omitted
-        }),
-      }, env);
+        env,
+      );
 
       expect(res.status).toBe(400);
       // Valibot validator should reject with the proper error message

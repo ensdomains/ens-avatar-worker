@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+
 import { getChainFromNetwork } from "./chains";
 
 describe("getChainFromNetwork", () => {

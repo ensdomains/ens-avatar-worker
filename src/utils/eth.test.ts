@@ -1,8 +1,14 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
-import { typedDataParameters, getVerifiedAddress } from "@/utils/eth";
-import { createTestUploadData, TEST_ACCOUNT, TEST_PUBLIC_CLIENT } from "@test/setup/helpers";
-import { Address, Hex } from "viem";
+import type { Address, Hex } from "viem";
 import { verifyTypedData } from "viem/actions";
+import { beforeEach, describe, expect, test, vi } from "vitest";
+
+import {
+  createTestUploadData,
+  TEST_ACCOUNT,
+  TEST_PUBLIC_CLIENT,
+} from "@test/setup/helpers";
+
+import { getVerifiedAddress, typedDataParameters } from "@/utils/eth";
 
 vi.mock("viem/actions", {
   spy: true,
@@ -11,7 +17,8 @@ vi.mock("viem/actions", {
 describe("getVerifiedAddress", () => {
   // Sample ENS name and hash for testing
   const TEST_NAME = "test.eth";
-  const TEST_HASH = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" as Hex;
+  const TEST_HASH =
+    "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" as Hex;
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -38,20 +45,17 @@ describe("getVerifiedAddress", () => {
 
     // Assert
     expect(result).toEqual(address);
-    expect(vi.mocked(verifyTypedData)).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        ...typedDataParameters,
-        address,
-        signature: sig,
-        message: {
-          upload: "avatar",
-          expiry,
-          name: TEST_NAME,
-          hash: TEST_HASH,
-        },
+    expect(vi.mocked(verifyTypedData)).toHaveBeenCalledWith(expect.anything(), {
+      ...typedDataParameters,
+      address,
+      signature: sig,
+      message: {
+        upload: "avatar",
+        expiry,
+        name: TEST_NAME,
+        hash: TEST_HASH,
       },
-    );
+    });
   });
 
   test("should return null when signature is invalid", async () => {
@@ -75,20 +79,17 @@ describe("getVerifiedAddress", () => {
 
     // Assert
     expect(result).toBeNull();
-    expect(vi.mocked(verifyTypedData)).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        ...typedDataParameters,
-        address,
-        signature: "0x0",
-        message: {
-          upload: "avatar",
-          expiry,
-          name: TEST_NAME,
-          hash: TEST_HASH,
-        },
+    expect(vi.mocked(verifyTypedData)).toHaveBeenCalledWith(expect.anything(), {
+      ...typedDataParameters,
+      address,
+      signature: "0x0",
+      message: {
+        upload: "avatar",
+        expiry,
+        name: TEST_NAME,
+        hash: TEST_HASH,
       },
-    );
+    });
   });
 
   test("should return null when verification throws an error", async () => {
@@ -100,7 +101,9 @@ describe("getVerifiedAddress", () => {
     );
 
     // Mock the verifyTypedData function to throw an error
-    vi.mocked(verifyTypedData).mockRejectedValue(new Error("Verification error"));
+    vi.mocked(verifyTypedData).mockRejectedValue(
+      new Error("Verification error"),
+    );
 
     // Act
     const result = await getVerifiedAddress({
@@ -171,20 +174,17 @@ describe("getVerifiedAddress", () => {
 
     // Assert
     expect(result).toEqual(address);
-    expect(verifyTypedData).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        ...typedDataParameters,
-        address,
-        signature: sig,
-        message: {
-          upload: "header",
-          expiry,
-          name: TEST_NAME,
-          hash: TEST_HASH,
-        },
+    expect(verifyTypedData).toHaveBeenCalledWith(expect.anything(), {
+      ...typedDataParameters,
+      address,
+      signature: sig,
+      message: {
+        upload: "header",
+        expiry,
+        name: TEST_NAME,
+        hash: TEST_HASH,
       },
-    );
+    });
   });
 
   test("integration: signature verification should work for real signatures", async () => {
