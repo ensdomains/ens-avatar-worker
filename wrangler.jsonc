@@ -28,15 +28,38 @@
         }
     ],
     "vars": {
-        "ENVIRONMENT": "dev"
+        "ENVIRONMENT": "dev",
+        "WEB3_ENDPOINT_MAP": "{\"mainnet\":\"https://cloudflare-eth.com\",\"sepolia\":\"https://ethereum-sepolia.publicnode.com\",\"holesky\":\"https://ethereum-holesky.publicnode.com\",\"goerli\":\"https://ethereum-goerli.publicnode.com\",\"localhost\":\"http://localhost:8545\"}"
     },
     "env": {
         "staging": {
+            "name": "avatar-upload-staging",
+            "r2_buckets": [
+                {
+                    "binding": "AVATAR_BUCKET",
+                    "bucket_name": "staging-avatar-storage"
+                },
+                {
+                    "binding": "HEADER_BUCKET",
+                    "bucket_name": "staging-header-storage"
+                }
+            ],
             "vars": {
                 "ENVIRONMENT": "staging"
             }
         },
         "production": {
+            "name": "avatar-upload",
+            "r2_buckets": [
+                {
+                    "binding": "AVATAR_BUCKET",
+                    "bucket_name": "avatar-storage"
+                },
+                {
+                    "binding": "HEADER_BUCKET",
+                    "bucket_name": "header-storage"
+                }
+            ],
             "vars": {
                 "ENVIRONMENT": "production"
             }

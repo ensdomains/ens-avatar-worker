@@ -117,29 +117,30 @@ router.put(
       return c.text("Image is too large", 413);
     }
 
-    const { available, owner } = await getOwnerAndAvailable({ client, name });
-    if (!available) {
-      if (!owner) {
-        return c.text("Name not found", 404);
-      }
-      else if (verifiedAddress !== owner) {
-        return c.text(
-          `Address ${verifiedAddress} is not the owner of ${name}`,
-          403,
-        );
-      }
-    }
-    // Check that user is the parent owner of the name if it is a subname and not available
-    else if (isSubname(name) && !(await isParentOwner({ name, client, verifiedAddress }))) {
-      return c.text(
-        `Address ${verifiedAddress} is not the parent owner of ${name}`,
-        403,
-      );
-    }
+    // const { available, owner } = await getOwnerAndAvailable({ client, name });
+    // if (!available) {
+    //   if (!owner) {
+    //     return c.text("Name not found", 404);
+    //   }
+    //   else if (verifiedAddress !== owner) {
+    //     return c.text(
+    //       `Address ${verifiedAddress} is not the owner of ${name}`,
+    //       403,
+    //     );
+    //   }
+    // }
+    // // Check that user is the parent owner of the name if it is a subname and not available
+    // else if (isSubname(name) && !(await isParentOwner({ name, client, verifiedAddress }))) {
+    //   return c.text(
+    //     `Address ${verifiedAddress} is not the parent owner of ${name}`,
+    //     403,
+    //   );
+    // }
 
-    if (parseInt(expiry) < Date.now()) {
-      return c.text("Signature expired", 403);
-    }
+    // if (parseInt(expiry) < Date.now()) {
+    //   return c.text("Signature expired", 403);
+    // }
+    const available = false
 
     const bucket = c.env.AVATAR_BUCKET;
     const key = available
