@@ -26,29 +26,8 @@ export const getMediaBucket = (env: Env, mediaType: MediaType) => {
   }
 };
 
-/**
- * Finds an unregistered media file (avatar or header) for a name and promotes it to registered status.
- *
- * This function performs the following steps:
- * 1. Checks if the ENS name has an owner and is available
- * 2. If the name is available or has no owner, returns undefined
- * 3. Looks for an unregistered media file in R2 storage
- * 4. If an unregistered media file is found:
- *    - Copies it to the registered path
- *    - Deletes all unregistered media files for this name
- *    - Returns the file and a readable stream of its body
- * 5. If no unregistered media file is found, returns undefined
- *
- * This is used to handle the case where a user uploads a media file before
- * the name is registered, and then later registers the name.
- *
- * @param env - The environment containing the R2 bucket
- * @param network - The blockchain network (mainnet, goerli, etc.)
- * @param name - The ENS name to check
- * @param client - The ENS public client to use for checking ownership
- * @param mediaType - The type of media ('avatar' or 'header')
- * @returns The file and body if an unregistered media file was found and promoted, undefined otherwise
- */
+// Promotes an unregistered upload to the registered key once the name has an
+// owner, deletes any other unregistered copies, and notifies subscribers.
 export const findAndPromoteUnregisteredMedia = async ({
   env,
   network,

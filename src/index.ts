@@ -21,10 +21,8 @@ const app = createApp();
 const corsMiddleware = cors({
   origin: (origin, c) => {
     const requestOrigin = c.req.header("Origin") || "";
-    // We rely on ENVIRONMENT from wrangler config
     const isProd = c.env.ENVIRONMENT === "production";
 
-    // If production environment: only allow subdomains of approved suffixes
     if (isProd) {
       try {
         const hostname = new URL(requestOrigin).hostname;
@@ -32,25 +30,21 @@ const corsMiddleware = cors({
           host === suffix || host.endsWith(`.${suffix}`);
 
         if (PROD_ALLOWED_ORIGIN_SUFFIXES.some(suffix => allows(hostname, suffix))) {
-          return requestOrigin; // reflect approved origin
+          return requestOrigin;
         }
       }
       catch {
-        // If it's not a valid URL, deny
+        // not a valid URL
       }
-      return ""; // empty => disallowed
+      return "";
     }
 
-    // Otherwise (development), allow all
     return "*";
   },
   allowMethods: ["GET", "PUT", "POST", "OPTIONS", "DELETE"],
 });
 
-// Skip CORS for WebSocket upgrades — Hono's cors middleware tries to clone
-// the 101 response to inject headers, and Response cannot be constructed with
-// a 1xx status. Browsers don't apply CORS to WS handshakes anyway; the Origin
-// header is checked at upgrade time by the subscription handler if needed.
+// Hono's cors clones the route response to inject headers; cloning a 101 fails because Response forbids 1xx.
 app.use("*", async (c, next) => {
   if (c.req.header("Upgrade")?.toLowerCase() === "websocket") return next();
   return corsMiddleware(c, next);
