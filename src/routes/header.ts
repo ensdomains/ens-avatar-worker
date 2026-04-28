@@ -138,6 +138,7 @@ router.put("/:name/h", clientMiddleware, vValidator("json", uploadSchema), async
 
   const uploaded = await bucket.put(key, bytes, {
     httpMetadata: { contentType: "image/jpeg" },
+    sha256: hash.slice(2),
   });
 
   if (uploaded.key === key) {

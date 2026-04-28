@@ -1,4 +1,4 @@
-import { type Address, type Hex, toHex } from "viem";
+import { type Address, type Hex, sha256, toHex } from "viem";
 import { EnsPublicClient, Network } from "./chains";
 import { getOwnerAndAvailable } from "./owner";
 import { notifyMediaChanged } from "./notify";
@@ -79,10 +79,14 @@ export const findAndPromoteUnregisteredMedia = async ({
     return;
   }
 
-  const [b1, b2] = unregisteredMediaFile.body.tee();
+  // Three branches: one for the put, one to return to the caller, one we may
+  // need to consume to compute sha256 for objects that R2 doesn't already have
+  // a hash for (uploads from before the route started passing `sha256:`).
+  const [putBranch, rest] = unregisteredMediaFile.body.tee();
+  const [hashBranch, b2] = rest.tee();
 
   const registeredKey = MEDIA_BUCKET_KEY.registered(network, name);
-  await bucket.put(registeredKey, b1, {
+  await bucket.put(registeredKey, putBranch, {
     httpMetadata: unregisteredMediaFile.httpMetadata,
   });
 
@@ -108,11 +112,19 @@ export const findAndPromoteUnregisteredMedia = async ({
     }
   }
 
-  // R2 auto-computes sha256 for objects ≤ 100MB; if absent, fall back to "0x".
+  // R2 only returns sha256 if the original PUT supplied it. New uploads do
+  // (see routes/avatar.ts and routes/header.ts); for older objects without it
+  // we hash the body via the spare tee branch.
   const sha256Buffer = unregisteredMediaFile.checksums?.sha256;
-  const hash: Hex = sha256Buffer
-    ? toHex(new Uint8Array(sha256Buffer))
-    : "0x";
+  let hash: Hex;
+  if (sha256Buffer) {
+    hash = toHex(new Uint8Array(sha256Buffer));
+    await hashBranch.cancel();
+  }
+  else {
+    const buf = await new Response(hashBranch).arrayBuffer();
+    hash = sha256(new Uint8Array(buf));
+  }
 
   const notifyPromise = notifyMediaChanged(env, {
     type: "media.changed",

@@ -113,7 +113,9 @@ describe("Avatar Routes", () => {
       expect(putResult.httpMetadata?.contentType).toBe("image/jpeg");
       expect(await putResult.arrayBuffer()).toEqual(imageBuffer.buffer);
 
-      // Promotion fires a media.changed event with source: "promotion"
+      // Promotion fires a media.changed event with source: "promotion".
+      // The fixture is stored without R2 sha256 metadata, so this exercises
+      // the body-tee fallback path in findAndPromoteUnregisteredMedia.
       expect(vi.mocked(notify.notifyMediaChanged)).toHaveBeenCalledWith(
         env,
         expect.objectContaining({
@@ -124,6 +126,8 @@ describe("Avatar Routes", () => {
           name: MOCK_NAME,
           key: media.MEDIA_BUCKET_KEY.registered("mainnet", MOCK_NAME),
           address: TEST_ACCOUNT.address,
+          hash: sha256(imageBuffer),
+          size: imageBuffer.byteLength,
         }),
       );
     });
@@ -356,11 +360,12 @@ describe("Avatar Routes", () => {
         }
       `);
 
-      // Verify the file was uploaded to the registered path
+      // Verify the file was uploaded to the registered path with sha256 set
+      // so promotion later can read it back from R2 metadata
       expect(bucketSpy.put).toHaveBeenCalledWith(
         media.MEDIA_BUCKET_KEY.registered("mainnet", NORMALIZED_NAME),
         imageBuffer,
-        { httpMetadata: { contentType: "image/jpeg" } },
+        { httpMetadata: { contentType: "image/jpeg" }, sha256: imageHash.slice(2) },
       );
 
       // Verify a media.changed event was emitted to subscribers
@@ -388,7 +393,7 @@ describe("Avatar Routes", () => {
       });
 
       const dataURL = "data:image/jpeg;base64,test123123";
-      const { res, imageBuffer } = await uploadAvatar(NORMALIZED_NAME, dataURL, "mainnet");
+      const { res, imageBuffer, imageHash } = await uploadAvatar(NORMALIZED_NAME, dataURL, "mainnet");
 
       expect(res.status).toBe(200);
       expect(await res.json()).toMatchInlineSnapshot(`
@@ -401,7 +406,7 @@ describe("Avatar Routes", () => {
       expect(bucketSpy.put).toHaveBeenCalledWith(
         media.MEDIA_BUCKET_KEY.unregistered("mainnet", NORMALIZED_NAME, TEST_ACCOUNT.address),
         imageBuffer,
-        { httpMetadata: { contentType: "image/jpeg" } },
+        { httpMetadata: { contentType: "image/jpeg" }, sha256: imageHash.slice(2) },
       );
 
       // Notify uses the unregistered key for available names
@@ -565,7 +570,7 @@ describe("Avatar Routes", () => {
       });
 
       const dataURL = `data:image/jpeg;base64,${btoa(Array.from(imageBuffer).map(byte => String.fromCharCode(byte)).join(""))}`;
-      const { res } = await uploadAvatar(NORMALIZED_NAME, dataURL, network);
+      const { res, imageHash } = await uploadAvatar(NORMALIZED_NAME, dataURL, network);
 
       expect(res.status).toBe(200);
 
@@ -573,7 +578,7 @@ describe("Avatar Routes", () => {
       expect(bucketSpy.put).toHaveBeenCalledWith(
         media.MEDIA_BUCKET_KEY.registered(network, NORMALIZED_NAME),
         imageBuffer,
-        { httpMetadata: { contentType: "image/jpeg" } },
+        { httpMetadata: { contentType: "image/jpeg" }, sha256: imageHash.slice(2) },
       );
     });
 
