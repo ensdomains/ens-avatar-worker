@@ -1,5 +1,7 @@
+import { type Address, type Hex, toHex } from "viem";
 import { EnsPublicClient, Network } from "./chains";
 import { getOwnerAndAvailable } from "./owner";
+import { notifyMediaChanged } from "./notify";
 
 export type MediaType = "avatar" | "header";
 
@@ -53,12 +55,15 @@ export const findAndPromoteUnregisteredMedia = async ({
   name,
   client,
   mediaType,
+  executionCtx,
 }: {
   env: Env;
   client: EnsPublicClient;
   network: Network;
   name: string;
   mediaType: MediaType;
+  // Structural so both Hono's and the runtime's ExecutionContext satisfy it.
+  executionCtx?: { waitUntil(promise: Promise<unknown>): void };
 }) => {
   const { owner, available } = await getOwnerAndAvailable({ client, name });
 
@@ -76,7 +81,8 @@ export const findAndPromoteUnregisteredMedia = async ({
 
   const [b1, b2] = unregisteredMediaFile.body.tee();
 
-  await bucket.put(MEDIA_BUCKET_KEY.registered(network, name), b1, {
+  const registeredKey = MEDIA_BUCKET_KEY.registered(network, name);
+  await bucket.put(registeredKey, b1, {
     httpMetadata: unregisteredMediaFile.httpMetadata,
   });
 
@@ -100,6 +106,31 @@ export const findAndPromoteUnregisteredMedia = async ({
     else {
       break;
     }
+  }
+
+  // R2 auto-computes sha256 for objects ≤ 100MB; if absent, fall back to "0x".
+  const sha256Buffer = unregisteredMediaFile.checksums?.sha256;
+  const hash: Hex = sha256Buffer
+    ? toHex(new Uint8Array(sha256Buffer))
+    : "0x";
+
+  const notifyPromise = notifyMediaChanged(env, {
+    type: "media.changed",
+    mediaType,
+    network,
+    name,
+    hash,
+    size: unregisteredMediaFile.size,
+    key: registeredKey,
+    address: owner as Address,
+    source: "promotion",
+    timestamp: Date.now(),
+  });
+  if (executionCtx) {
+    executionCtx.waitUntil(notifyPromise);
+  }
+  else {
+    await notifyPromise;
   }
 
   return {

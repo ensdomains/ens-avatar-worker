@@ -1,6 +1,6 @@
 import { vValidator } from "@hono/valibot-validator";
 import * as v from "valibot";
-import { createApp } from "@/utils/hono";
+import { createApp, getExecutionCtx } from "@/utils/hono";
 import { clientMiddleware, NetworkMiddlewareEnv } from "@/utils/chains";
 import { Address, isAddress, sha256 } from "viem";
 import { Hex } from "viem";
@@ -12,6 +12,7 @@ import {
   findAndPromoteUnregisteredMedia,
   MEDIA_BUCKET_KEY,
 } from "@/utils/media";
+import { notifyMediaChanged } from "@/utils/notify";
 import { isParentOwner, isSubname } from "@/utils/subname";
 
 const router = createApp<NetworkMiddlewareEnv>();
@@ -64,6 +65,7 @@ router.get("/:name", clientMiddleware, async (c) => {
     name,
     client,
     mediaType: "avatar",
+    executionCtx: getExecutionCtx(c),
   });
 
   if (unregisteredAvatar) {
@@ -151,6 +153,18 @@ router.put(
     });
 
     if (uploaded.key === key) {
+      getExecutionCtx(c).waitUntil(notifyMediaChanged(c.env, {
+        type: "media.changed",
+        mediaType: "avatar",
+        network,
+        name,
+        hash,
+        size: bytes.byteLength,
+        key,
+        address: verifiedAddress,
+        source: "upload",
+        timestamp: Date.now(),
+      }));
       return c.json({ message: "uploaded" }, 200);
     }
     else {
