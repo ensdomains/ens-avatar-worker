@@ -27,6 +27,20 @@
             "preview_bucket_name": "preview-header-storage"
         }
     ],
+    "durable_objects": {
+        "bindings": [
+            {
+                "name": "MEDIA_NOTIFIER",
+                "class_name": "MediaNotifier"
+            }
+        ]
+    },
+    "migrations": [
+        {
+            "tag": "v1",
+            "new_classes": ["MediaNotifier"]
+        }
+    ],
     "vars": {
         "ENVIRONMENT": "dev"
     },

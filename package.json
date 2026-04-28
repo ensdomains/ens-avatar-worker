@@ -6,7 +6,7 @@
         "generate-types": "wrangler types",
         "type-check": "pnpm generate-types && tsc",
         "lint": "eslint -c eslint.config.mjs",
-        "test": "vitest"
+        "test": "vitest --run && vitest --run --config vitest.config.do.ts"
     },
     "dependencies": {
         "@ensdomains/ensjs": "^4.0.2",

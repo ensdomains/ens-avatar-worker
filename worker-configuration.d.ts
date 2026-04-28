@@ -5,6 +5,7 @@ interface Env {
 	WEB3_ENDPOINT_MAP: string;
 	AVATAR_BUCKET: R2Bucket;
 	HEADER_BUCKET: R2Bucket;
+	MEDIA_NOTIFIER: DurableObjectNamespace<import("./src/durable-objects/media-notifier").MediaNotifier>;
 	LOCALHOST_ENS_REGISTRY?: string;
 	LOCALHOST_ENS_NAME_WRAPPER?: string;
 	LOCALHOST_ENS_UNIVERSAL_RESOLVER?: string;

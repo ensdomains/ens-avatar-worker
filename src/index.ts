@@ -2,7 +2,10 @@ import { createApp } from "./utils/hono";
 import { NetworkMiddlewareEnv, networkMiddleware } from "./utils/chains";
 import avatarRouter from "./routes/avatar";
 import headerRouter from "./routes/header";
+import eventsRouter from "./routes/events";
 import { cors } from "hono/cors";
+
+export { MediaNotifier } from "./durable-objects/media-notifier";
 
 const PROD_ALLOWED_ORIGIN_SUFFIXES = [
   "ens.domains",
@@ -50,6 +53,7 @@ const networkRouter = createApp<NetworkMiddlewareEnv>().use(networkMiddleware);
 
 networkRouter.route("/", avatarRouter);
 networkRouter.route("/", headerRouter);
+networkRouter.route("/", eventsRouter);
 
 app.route("/", networkRouter);
 app.route("/:network", networkRouter);

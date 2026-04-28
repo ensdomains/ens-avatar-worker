@@ -1,0 +1,93 @@
+import { DurableObject } from "cloudflare:workers";
+import type { Address, Hex } from "viem";
+import type { Network } from "@/utils/chains";
+import type { MediaType } from "@/utils/media";
+
+export type ChangePayload = {
+  type: "media.changed";
+  mediaType: MediaType;
+  network: Network;
+  name: string;
+  hash: Hex;
+  size: number;
+  key: string;
+  address: Address;
+  source: "upload" | "promotion";
+  timestamp: number;
+};
+
+const tagFor = (network: Network, name: string, mediaType: MediaType) =>
+  `${network}:${name}:${mediaType}`;
+
+export class MediaNotifier extends DurableObject<Env> {
+  // Plain in-memory subscriber map. The DO is a single global instance that
+  // stays alive while clients are connected, so we don't need hibernation or
+  // SQLite-backed persistence for v1.
+  #subscribers: Map<string, Set<WebSocket>> = new Map();
+
+  override async fetch(req: Request): Promise<Response> {
+    const url = new URL(req.url);
+    if (url.pathname === "/subscribe") return this.#subscribe(req, url);
+    if (url.pathname === "/notify") return this.#notify(req);
+    return new Response("not found", { status: 404 });
+  }
+
+  #subscribe(req: Request, url: URL): Response {
+    if (req.headers.get("Upgrade") !== "websocket") {
+      return new Response("expected websocket", { status: 426 });
+    }
+
+    const network = url.searchParams.get("network") as Network | null;
+    const name = url.searchParams.get("name");
+    const mediaType = url.searchParams.get("mediaType") as MediaType | null;
+
+    if (!network || !name || !mediaType) {
+      return new Response("missing subscription params", { status: 400 });
+    }
+
+    const pair = new WebSocketPair();
+    const [client, server] = Object.values(pair);
+
+    server.accept();
+    const tag = tagFor(network, name, mediaType);
+    let bucket = this.#subscribers.get(tag);
+    if (!bucket) {
+      bucket = new Set();
+      this.#subscribers.set(tag, bucket);
+    }
+    bucket.add(server);
+
+    const cleanup = () => {
+      bucket?.delete(server);
+      if (bucket && bucket.size === 0) this.#subscribers.delete(tag);
+    };
+    server.addEventListener("close", cleanup);
+    server.addEventListener("error", cleanup);
+
+    server.send(JSON.stringify({ type: "hello", protocol: 1 }));
+
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  async #notify(req: Request): Promise<Response> {
+    const payload = (await req.json()) as ChangePayload;
+    const message = JSON.stringify(payload);
+    const tag = tagFor(payload.network, payload.name, payload.mediaType);
+    const bucket = this.#subscribers.get(tag);
+
+    let delivered = 0;
+    if (bucket) {
+      for (const ws of bucket) {
+        try {
+          ws.send(message);
+          delivered += 1;
+        }
+        catch {
+          bucket.delete(ws);
+        }
+      }
+    }
+
+    return new Response(null, { status: 204, headers: { "X-Delivered": String(delivered) } });
+  }
+}
