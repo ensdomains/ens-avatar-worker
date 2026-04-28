@@ -16,6 +16,9 @@ export type ChangePayload = {
   timestamp: number;
 };
 
+const NETWORKS = new Set<Network>(["mainnet", "goerli", "sepolia", "holesky", "localhost"]);
+const MEDIA_TYPES = new Set<MediaType>(["avatar", "header"]);
+
 const tagFor = (network: Network, name: string, mediaType: MediaType) =>
   `${network}:${name}:${mediaType}`;
 
@@ -39,19 +42,24 @@ export class MediaNotifier extends DurableObject<Env> {
       return new Response("expected websocket", { status: 426 });
     }
 
-    const network = url.searchParams.get("network") as Network | null;
+    const network = url.searchParams.get("network");
     const name = url.searchParams.get("name");
-    const mediaType = url.searchParams.get("mediaType") as MediaType | null;
+    const mediaType = url.searchParams.get("mediaType");
 
-    if (!network || !name || !mediaType) {
-      return new Response("missing subscription params", { status: 400 });
+    if (!name || !network || !NETWORKS.has(network as Network)) {
+      return new Response("invalid network or name", { status: 400 });
     }
+    if (!mediaType || !MEDIA_TYPES.has(mediaType as MediaType)) {
+      return new Response("invalid mediaType", { status: 400 });
+    }
+
+    const tag = tagFor(network as Network, name, mediaType as MediaType);
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
     server.accept();
-    const tag = tagFor(network, name, mediaType);
+
     let bucket = this.#subscribers.get(tag);
     if (!bucket) {
       bucket = new Set();
@@ -60,8 +68,10 @@ export class MediaNotifier extends DurableObject<Env> {
     bucket.add(server);
 
     const cleanup = () => {
-      bucket?.delete(server);
-      if (bucket && bucket.size === 0) this.#subscribers.delete(tag);
+      const current = this.#subscribers.get(tag);
+      if (!current) return;
+      current.delete(server);
+      if (current.size === 0) this.#subscribers.delete(tag);
     };
     server.addEventListener("close", cleanup);
     server.addEventListener("error", cleanup);

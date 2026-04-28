@@ -77,6 +77,26 @@ describe("MediaNotifier DO", () => {
     expect(res.status).toBe(400);
   });
 
+  test("returns 400 if network is not in the allowlist", async () => {
+    const id = env.MEDIA_NOTIFIER.idFromName("bad-network");
+    const stub = env.MEDIA_NOTIFIER.get(id);
+    const res = await stub.fetch(
+      "https://do/subscribe?network=evil&name=alice.eth&mediaType=avatar",
+      { headers: { Upgrade: "websocket" } },
+    );
+    expect(res.status).toBe(400);
+  });
+
+  test("returns 400 if mediaType is not in the allowlist", async () => {
+    const id = env.MEDIA_NOTIFIER.idFromName("bad-mediatype");
+    const stub = env.MEDIA_NOTIFIER.get(id);
+    const res = await stub.fetch(
+      "https://do/subscribe?network=mainnet&name=alice.eth&mediaType=junk",
+      { headers: { Upgrade: "websocket" } },
+    );
+    expect(res.status).toBe(400);
+  });
+
   // Note: cross-fetch WebSocket message delivery (DO -> test runner client end)
   // is not observable in @cloudflare/vitest-pool-workers — the pair only carries
   // messages within a single fetch invocation. We assert delivery via the
