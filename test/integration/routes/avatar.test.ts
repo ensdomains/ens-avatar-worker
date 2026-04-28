@@ -132,6 +132,51 @@ describe("Avatar Routes", () => {
       );
     });
 
+    test("promotes an unregistered avatar that already has sha256 metadata without hanging", async () => {
+      // Reproduces the case where the unregistered object was uploaded via the
+      // PUT route after we started passing `sha256:` to bucket.put. The
+      // promotion must NOT create + cancel a hash tee branch, otherwise
+      // ReadableStream.tee couples the cancel to the sibling and the GET
+      // response never resolves.
+      const imageBuffer = new Uint8Array([10, 20, 30, 40]);
+      const imageHash = sha256(imageBuffer);
+
+      await env.AVATAR_BUCKET.put(
+        media.MEDIA_BUCKET_KEY.unregistered("mainnet", MOCK_NAME, TEST_ACCOUNT.address),
+        imageBuffer,
+        {
+          httpMetadata: { contentType: "image/jpeg" },
+          sha256: imageHash.slice(2),
+        },
+      );
+
+      vi.mocked(owner.getOwnerAndAvailable).mockResolvedValue({
+        owner: TEST_ACCOUNT.address,
+        available: false,
+      });
+
+      // Bound the request so a hang fails the test instead of timing out the suite.
+      const res = await Promise.race([
+        app.request(`/${MOCK_NAME}`, {}, env),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("promotion request hung")), 2000),
+        ),
+      ]);
+
+      expect(res.status).toBe(200);
+      expect(new Uint8Array(await res.arrayBuffer())).toEqual(imageBuffer);
+
+      // Hash should come from R2 metadata, matching the value the upload stored.
+      expect(vi.mocked(notify.notifyMediaChanged)).toHaveBeenCalledWith(
+        env,
+        expect.objectContaining({
+          source: "promotion",
+          hash: imageHash,
+          size: imageBuffer.byteLength,
+        }),
+      );
+    });
+
     test("returns 404 when no avatar exists for the name", async () => {
       // Mock unregistered avatar doesn't exist
       vi.mocked(owner.getOwnerAndAvailable).mockResolvedValue({

@@ -79,11 +79,28 @@ export const findAndPromoteUnregisteredMedia = async ({
     return;
   }
 
-  // Three branches: one for the put, one to return to the caller, one we may
-  // need to consume to compute sha256 for objects that R2 doesn't already have
-  // a hash for (uploads from before the route started passing `sha256:`).
-  const [putBranch, rest] = unregisteredMediaFile.body.tee();
-  const [hashBranch, b2] = rest.tee();
+  // R2 only returns sha256 if the original PUT supplied it. New uploads do
+  // (see routes/avatar.ts and routes/header.ts); for older objects without it
+  // we hash the body via a spare tee branch. Only create that third branch
+  // when we actually need it — `tee()` couples branch lifetimes (cancel() on
+  // one branch only resolves once the sibling is also canceled), so an unused
+  // hash branch left dangling next to the returned body would hang.
+  const sha256Buffer = unregisteredMediaFile.checksums?.sha256;
+
+  let putBranch: ReadableStream<Uint8Array>;
+  let returnBranch: ReadableStream<Uint8Array>;
+  let hashBranch: ReadableStream<Uint8Array> | undefined;
+
+  if (sha256Buffer) {
+    [putBranch, returnBranch] = unregisteredMediaFile.body.tee();
+  }
+  else {
+    const [first, rest] = unregisteredMediaFile.body.tee();
+    const [second, third] = rest.tee();
+    putBranch = first;
+    hashBranch = second;
+    returnBranch = third;
+  }
 
   const registeredKey = MEDIA_BUCKET_KEY.registered(network, name);
   await bucket.put(registeredKey, putBranch, {
@@ -112,17 +129,12 @@ export const findAndPromoteUnregisteredMedia = async ({
     }
   }
 
-  // R2 only returns sha256 if the original PUT supplied it. New uploads do
-  // (see routes/avatar.ts and routes/header.ts); for older objects without it
-  // we hash the body via the spare tee branch.
-  const sha256Buffer = unregisteredMediaFile.checksums?.sha256;
   let hash: Hex;
   if (sha256Buffer) {
     hash = toHex(new Uint8Array(sha256Buffer));
-    await hashBranch.cancel();
   }
   else {
-    const buf = await new Response(hashBranch).arrayBuffer();
+    const buf = await new Response(hashBranch!).arrayBuffer();
     hash = sha256(new Uint8Array(buf));
   }
 
@@ -147,6 +159,6 @@ export const findAndPromoteUnregisteredMedia = async ({
 
   return {
     file: unregisteredMediaFile,
-    body: b2,
+    body: returnBranch,
   };
 };
