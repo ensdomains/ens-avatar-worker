@@ -6,7 +6,7 @@ import type { MediaType } from "@/utils/media";
 const router = createApp<NetworkMiddlewareEnv>();
 
 const subscribeHandler = (mediaType: MediaType) => (c: Context<BaseEnv & NetworkMiddlewareEnv>) => {
-  if (c.req.header("Upgrade") !== "websocket") {
+  if (c.req.header("Upgrade")?.toLowerCase() !== "websocket") {
     return c.text("expected websocket", 426);
   }
 

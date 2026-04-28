@@ -68,6 +68,16 @@ describe("MediaNotifier DO", () => {
     expect(res.status).toBe(426);
   });
 
+  test("accepts Upgrade header regardless of case (RFC 9110)", async () => {
+    const id = env.MEDIA_NOTIFIER.idFromName("upgrade-case");
+    const stub = env.MEDIA_NOTIFIER.get(id);
+    const res = await stub.fetch(
+      "https://do/subscribe?network=mainnet&name=test.eth&mediaType=avatar",
+      { headers: { Upgrade: "WebSocket" } },
+    );
+    expect(res.status).toBe(101);
+  });
+
   test("returns 400 if subscription params are missing", async () => {
     const id = env.MEDIA_NOTIFIER.idFromName("params-missing");
     const stub = env.MEDIA_NOTIFIER.get(id);

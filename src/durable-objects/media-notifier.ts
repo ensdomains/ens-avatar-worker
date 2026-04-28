@@ -33,7 +33,7 @@ export class MediaNotifier extends DurableObject<Env> {
   }
 
   #subscribe(req: Request, url: URL): Response {
-    if (req.headers.get("Upgrade") !== "websocket") {
+    if (req.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
       return new Response("expected websocket", { status: 426 });
     }
 
