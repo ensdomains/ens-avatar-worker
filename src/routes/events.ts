@@ -1,40 +1,25 @@
-import { createApp } from "@/utils/hono";
-import type { Network, NetworkMiddlewareEnv } from "@/utils/chains";
+import type { Context } from "hono";
+import { BaseEnv, createApp } from "@/utils/hono";
+import { type NetworkMiddlewareEnv } from "@/utils/chains";
 import type { MediaType } from "@/utils/media";
 
 const router = createApp<NetworkMiddlewareEnv>();
 
-const buildSubscribeRequest = (
-  req: Request,
-  network: Network,
-  name: string,
-  mediaType: MediaType,
-) => {
+const subscribeHandler = (mediaType: MediaType) => (c: Context<BaseEnv & NetworkMiddlewareEnv>) => {
+  if (c.req.header("Upgrade") !== "websocket") {
+    return c.text("expected websocket", 426);
+  }
+
   const url = new URL("https://do/subscribe");
-  url.searchParams.set("network", network);
-  url.searchParams.set("name", name);
+  url.searchParams.set("network", c.var.network);
+  url.searchParams.set("name", c.req.param("name"));
   url.searchParams.set("mediaType", mediaType);
-  return new Request(url, req);
+
+  const id = c.env.MEDIA_NOTIFIER.idFromName("global");
+  return c.env.MEDIA_NOTIFIER.get(id).fetch(new Request(url, c.req.raw));
 };
 
-router.get("/:name/events", (c) => {
-  if (c.req.header("Upgrade") !== "websocket") {
-    return c.text("expected websocket", 426);
-  }
-  const id = c.env.MEDIA_NOTIFIER.idFromName("global");
-  return c.env.MEDIA_NOTIFIER
-    .get(id)
-    .fetch(buildSubscribeRequest(c.req.raw, c.var.network, c.req.param("name"), "avatar"));
-});
-
-router.get("/:name/h/events", (c) => {
-  if (c.req.header("Upgrade") !== "websocket") {
-    return c.text("expected websocket", 426);
-  }
-  const id = c.env.MEDIA_NOTIFIER.idFromName("global");
-  return c.env.MEDIA_NOTIFIER
-    .get(id)
-    .fetch(buildSubscribeRequest(c.req.raw, c.var.network, c.req.param("name"), "header"));
-});
+router.get("/:name/events", subscribeHandler("avatar"));
+router.get("/:name/h/events", subscribeHandler("header"));
 
 export default router;

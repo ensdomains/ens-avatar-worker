@@ -1,6 +1,6 @@
 import { vValidator } from "@hono/valibot-validator";
 import * as v from "valibot";
-import { createApp, getExecutionCtx } from "@/utils/hono";
+import { createApp, waitUntil } from "@/utils/hono";
 import { clientMiddleware, NetworkMiddlewareEnv } from "@/utils/chains";
 import { Address, isAddress, sha256 } from "viem";
 import { Hex } from "viem";
@@ -61,7 +61,7 @@ router.get("/:name/h", clientMiddleware, async (c) => {
     name,
     client,
     mediaType: "header",
-    executionCtx: getExecutionCtx(c),
+    waitUntil: p => waitUntil(c, p),
   });
 
   if (unregisteredHeader) {
@@ -142,7 +142,7 @@ router.put("/:name/h", clientMiddleware, vValidator("json", uploadSchema), async
   });
 
   if (uploaded.key === key) {
-    getExecutionCtx(c).waitUntil(notifyMediaChanged(c.env, {
+    waitUntil(c, notifyMediaChanged(c.env, {
       type: "media.changed",
       mediaType: "header",
       network,

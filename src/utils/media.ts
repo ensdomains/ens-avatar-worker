@@ -55,15 +55,14 @@ export const findAndPromoteUnregisteredMedia = async ({
   name,
   client,
   mediaType,
-  executionCtx,
+  waitUntil,
 }: {
   env: Env;
   client: EnsPublicClient;
   network: Network;
   name: string;
   mediaType: MediaType;
-  // Structural so both Hono's and the runtime's ExecutionContext satisfy it.
-  executionCtx?: { waitUntil(promise: Promise<unknown>): void };
+  waitUntil?: (promise: Promise<unknown>) => void;
 }) => {
   const { owner, available } = await getOwnerAndAvailable({ client, name });
 
@@ -115,7 +114,7 @@ export const findAndPromoteUnregisteredMedia = async ({
       cursor,
     });
 
-    const fileKeys = objects.map((o: { key: string }) => o.key);
+    const fileKeys = objects.map(o => o.key);
     if (!fileKeys.length) {
       break;
     }
@@ -150,12 +149,8 @@ export const findAndPromoteUnregisteredMedia = async ({
     source: "promotion",
     timestamp: Date.now(),
   });
-  if (executionCtx) {
-    executionCtx.waitUntil(notifyPromise);
-  }
-  else {
-    await notifyPromise;
-  }
+  if (waitUntil) waitUntil(notifyPromise);
+  else await notifyPromise;
 
   return {
     file: unregisteredMediaFile,

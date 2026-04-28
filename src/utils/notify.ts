@@ -1,7 +1,5 @@
 import type { ChangePayload } from "@/durable-objects/media-notifier";
 
-export type { ChangePayload };
-
 export const notifyMediaChanged = async (
   env: Env,
   payload: ChangePayload,
