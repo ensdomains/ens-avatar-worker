@@ -23,13 +23,9 @@ const subscribe = async (
   return ws;
 };
 
-const notify = async (instance: string, payload: ChangePayload) => {
+const notify = (instance: string, payload: ChangePayload) => {
   const id = env.MEDIA_NOTIFIER.idFromName(instance);
-  const stub = env.MEDIA_NOTIFIER.get(id);
-  return stub.fetch("https://do/notify", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  return env.MEDIA_NOTIFIER.get(id).notify(payload);
 };
 
 const nextMessage = (ws: WebSocket, timeoutMs = 1000) =>
@@ -84,9 +80,8 @@ describe("MediaNotifier DO", () => {
   // Note: cross-fetch WebSocket message delivery (DO -> test runner client end)
   // is not observable in @cloudflare/vitest-pool-workers — the pair only carries
   // messages within a single fetch invocation. We assert delivery via the
-  // DO-reported count (X-Delivered header) instead of waiting for the client
-  // socket to receive the message. End-to-end message flow is verified manually
-  // against `wrangler dev`.
+  // DO-reported count instead of waiting for the client socket to receive the
+  // message. End-to-end message flow is verified manually against `wrangler dev`.
   test("notify only delivers to sockets with matching tag", async () => {
     const instance = "tag-filter";
     await subscribe(instance, "mainnet", "alice.eth", "avatar");
@@ -94,34 +89,29 @@ describe("MediaNotifier DO", () => {
     await subscribe(instance, "mainnet", "bob.eth", "avatar");
     await subscribe(instance, "mainnet", "alice.eth", "header");
 
-    const payload = samplePayload({ name: "alice.eth", mediaType: "avatar" });
-    const notifyRes = await notify(instance, payload);
-    expect(notifyRes.status).toBe(204);
-    expect(notifyRes.headers.get("X-Delivered")).toBe("2");
+    const result = await notify(instance, samplePayload({ name: "alice.eth", mediaType: "avatar" }));
+    expect(result).toEqual({ delivered: 2 });
   });
 
   test("notify with mismatched mediaType is filtered out", async () => {
     const instance = "tag-filter-media";
     await subscribe(instance, "mainnet", "alice.eth", "avatar");
 
-    const headerPayload = samplePayload({ name: "alice.eth", mediaType: "header" });
-    const res = await notify(instance, headerPayload);
-    expect(res.headers.get("X-Delivered")).toBe("0");
+    const result = await notify(instance, samplePayload({ name: "alice.eth", mediaType: "header" }));
+    expect(result).toEqual({ delivered: 0 });
   });
 
   test("notify with mismatched network is filtered out", async () => {
     const instance = "tag-filter-network";
     await subscribe(instance, "mainnet", "alice.eth", "avatar");
 
-    const sepoliaPayload = samplePayload({ network: "sepolia", name: "alice.eth" });
-    const res = await notify(instance, sepoliaPayload);
-    expect(res.headers.get("X-Delivered")).toBe("0");
+    const result = await notify(instance, samplePayload({ network: "sepolia", name: "alice.eth" }));
+    expect(result).toEqual({ delivered: 0 });
   });
 
-  test("notify with no matching subscribers returns 204 and does not throw", async () => {
-    const res = await notify("empty", samplePayload({ name: "nobody.eth" }));
-    expect(res.status).toBe(204);
-    expect(res.headers.get("X-Delivered")).toBe("0");
+  test("notify with no matching subscribers returns delivered: 0 and does not throw", async () => {
+    const result = await notify("empty", samplePayload({ name: "nobody.eth" }));
+    expect(result).toEqual({ delivered: 0 });
   });
 
   test("closed sockets are removed from the subscriber set", async () => {
@@ -133,12 +123,11 @@ describe("MediaNotifier DO", () => {
     // Give the close a moment to propagate to the DO.
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    const res = await notify(instance, samplePayload());
-    expect(res.status).toBe(204);
-    expect(res.headers.get("X-Delivered")).toBe("1");
+    const result = await notify(instance, samplePayload());
+    expect(result).toEqual({ delivered: 1 });
   });
 
-  test("returns 404 for unknown DO paths", async () => {
+  test("returns 404 for unknown DO HTTP paths", async () => {
     const id = env.MEDIA_NOTIFIER.idFromName("unknown-path");
     const stub = env.MEDIA_NOTIFIER.get(id);
     const res = await stub.fetch("https://do/something-else");

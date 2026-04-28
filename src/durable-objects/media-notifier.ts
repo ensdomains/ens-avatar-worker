@@ -25,10 +25,12 @@ export class MediaNotifier extends DurableObject<Env> {
   // SQLite-backed persistence for v1.
   #subscribers: Map<string, Set<WebSocket>> = new Map();
 
+  // Only the WebSocket upgrade is HTTP. `notify` is exposed as an RPC method
+  // below so the worker can invoke it through the typed stub without going
+  // through HTTP.
   override async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
     if (url.pathname === "/subscribe") return this.#subscribe(req, url);
-    if (url.pathname === "/notify") return this.#notify(req);
     return new Response("not found", { status: 404 });
   }
 
@@ -69,8 +71,7 @@ export class MediaNotifier extends DurableObject<Env> {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  async #notify(req: Request): Promise<Response> {
-    const payload = (await req.json()) as ChangePayload;
+  async notify(payload: ChangePayload): Promise<{ delivered: number }> {
     const message = JSON.stringify(payload);
     const tag = tagFor(payload.network, payload.name, payload.mediaType);
     const bucket = this.#subscribers.get(tag);
@@ -88,6 +89,6 @@ export class MediaNotifier extends DurableObject<Env> {
       }
     }
 
-    return new Response(null, { status: 204, headers: { "X-Delivered": String(delivered) } });
+    return { delivered };
   }
 }
