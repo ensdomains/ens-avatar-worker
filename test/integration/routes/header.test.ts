@@ -3,6 +3,7 @@ import * as media from "@/utils/media";
 import * as eth from "@/utils/eth";
 import * as owner from "@/utils/owner";
 import * as data from "@/utils/data";
+import * as notify from "@/utils/notify";
 import { ModuleMock } from "@test/setup/meta";
 import { env } from "cloudflare:test";
 import { normalize } from "viem/ens";
@@ -14,6 +15,10 @@ import { sha256 } from "viem/utils";
 vi.mock("@/utils/owner", () => ({
   getOwnerAndAvailable: vi.fn(),
 }) satisfies ModuleMock<typeof owner>);
+
+vi.mock("@/utils/notify", () => ({
+  notifyMediaChanged: vi.fn(),
+}) satisfies ModuleMock<typeof notify>);
 
 // Test constants
 const MOCK_NAME = "test.eth";
@@ -28,6 +33,9 @@ describe("Header Routes", () => {
   beforeEach(() => {
     // Reset all mocks
     vi.resetAllMocks();
+    // notifyMediaChanged returns a Promise; default vi.fn() returns undefined
+    // and that breaks `executionCtx.waitUntil(...)`.
+    vi.mocked(notify.notifyMediaChanged).mockResolvedValue(undefined);
   });
 
   const bucketSpy = {
@@ -89,19 +97,39 @@ describe("Header Routes", () => {
       );
 
       // Verify the function was called with correct params
-      expect(findAndPromoteUnregisteredMediaSpy).toHaveBeenCalledWith({
-        env,
-        network: "mainnet",
-        name: MOCK_NAME,
-        client: expect.anything(),
-        mediaType: "header",
-      });
+      expect(findAndPromoteUnregisteredMediaSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          env,
+          network: "mainnet",
+          name: MOCK_NAME,
+          client: expect.anything(),
+          mediaType: "header",
+        }),
+      );
 
       const putResult = await env.HEADER_BUCKET.get(media.MEDIA_BUCKET_KEY.registered("mainnet", MOCK_NAME));
 
       assert(putResult);
       expect(putResult.httpMetadata?.contentType).toBe("image/jpeg");
       expect(await putResult.arrayBuffer()).toEqual(imageBuffer.buffer);
+
+      // Promotion fires a media.changed event with source: "promotion".
+      // The fixture is stored without R2 sha256 metadata, so this exercises
+      // the body-tee fallback path in findAndPromoteUnregisteredMedia.
+      expect(vi.mocked(notify.notifyMediaChanged)).toHaveBeenCalledWith(
+        env,
+        expect.objectContaining({
+          type: "media.changed",
+          mediaType: "header",
+          source: "promotion",
+          network: "mainnet",
+          name: MOCK_NAME,
+          key: media.MEDIA_BUCKET_KEY.registered("mainnet", MOCK_NAME),
+          address: TEST_ACCOUNT.address,
+          hash: sha256(imageBuffer),
+          size: imageBuffer.byteLength,
+        }),
+      );
     });
 
     test("returns 404 when no header exists for the name", async () => {
@@ -319,7 +347,7 @@ describe("Header Routes", () => {
       });
 
       const dataURL = "data:image/jpeg;base64,test123123";
-      const { res, imageBuffer } = await uploadHeader(NORMALIZED_NAME, dataURL, "mainnet");
+      const { res, imageBuffer, imageHash } = await uploadHeader(NORMALIZED_NAME, dataURL, "mainnet");
 
       expect(res.status).toBe(200);
       expect(await res.json()).toMatchInlineSnapshot(`
@@ -328,11 +356,28 @@ describe("Header Routes", () => {
         }
       `);
 
-      // Verify the file was uploaded to the registered path
+      // Verify the file was uploaded to the registered path with sha256 set
+      // so promotion later can read it back from R2 metadata
       expect(bucketSpy.put).toHaveBeenCalledWith(
         media.MEDIA_BUCKET_KEY.registered("mainnet", NORMALIZED_NAME),
         imageBuffer,
-        { httpMetadata: { contentType: "image/jpeg" } },
+        { httpMetadata: { contentType: "image/jpeg" }, sha256: imageHash.slice(2) },
+      );
+
+      // Verify a media.changed event was emitted to subscribers
+      expect(vi.mocked(notify.notifyMediaChanged)).toHaveBeenCalledWith(
+        env,
+        expect.objectContaining({
+          type: "media.changed",
+          mediaType: "header",
+          source: "upload",
+          network: "mainnet",
+          name: NORMALIZED_NAME,
+          hash: imageHash,
+          size: imageBuffer.byteLength,
+          key: media.MEDIA_BUCKET_KEY.registered("mainnet", NORMALIZED_NAME),
+          address: TEST_ACCOUNT.address,
+        }),
       );
     });
 
@@ -344,7 +389,7 @@ describe("Header Routes", () => {
       });
 
       const dataURL = "data:image/jpeg;base64,test123123";
-      const { res, imageBuffer } = await uploadHeader(NORMALIZED_NAME, dataURL, "mainnet");
+      const { res, imageBuffer, imageHash } = await uploadHeader(NORMALIZED_NAME, dataURL, "mainnet");
 
       expect(res.status).toBe(200);
       expect(await res.json()).toMatchInlineSnapshot(`
@@ -357,7 +402,17 @@ describe("Header Routes", () => {
       expect(bucketSpy.put).toHaveBeenCalledWith(
         media.MEDIA_BUCKET_KEY.unregistered("mainnet", NORMALIZED_NAME, TEST_ACCOUNT.address),
         imageBuffer,
-        { httpMetadata: { contentType: "image/jpeg" } },
+        { httpMetadata: { contentType: "image/jpeg" }, sha256: imageHash.slice(2) },
+      );
+
+      // Notify uses the unregistered key for available names
+      expect(vi.mocked(notify.notifyMediaChanged)).toHaveBeenCalledWith(
+        env,
+        expect.objectContaining({
+          mediaType: "header",
+          source: "upload",
+          key: media.MEDIA_BUCKET_KEY.unregistered("mainnet", NORMALIZED_NAME, TEST_ACCOUNT.address),
+        }),
       );
     });
 
@@ -387,8 +442,9 @@ describe("Header Routes", () => {
       expect(res.status).toBe(400);
       expect(await res.text()).toBe("Invalid signature");
 
-      // Verify no upload was attempted
+      // Verify no upload was attempted and no event was emitted
       expect(bucketSpy.put).not.toHaveBeenCalled();
+      expect(vi.mocked(notify.notifyMediaChanged)).not.toHaveBeenCalled();
     });
 
     test("returns 403 when the signature has expired", async () => {
@@ -492,6 +548,7 @@ describe("Header Routes", () => {
 
       expect(res.status).toBe(500);
       expect(await res.text()).toBe(`${NORMALIZED_NAME} not uploaded`);
+      expect(vi.mocked(notify.notifyMediaChanged)).not.toHaveBeenCalled();
     });
 
     test.each(MOCK_NETWORKS)("works with network %s", async (network) => {
@@ -509,7 +566,7 @@ describe("Header Routes", () => {
       });
 
       const dataURL = `data:image/jpeg;base64,${btoa(Array.from(imageBuffer).map(byte => String.fromCharCode(byte)).join(""))}`;
-      const { res } = await uploadHeader(NORMALIZED_NAME, dataURL, network);
+      const { res, imageHash } = await uploadHeader(NORMALIZED_NAME, dataURL, network);
 
       expect(res.status).toBe(200);
 
@@ -517,7 +574,7 @@ describe("Header Routes", () => {
       expect(bucketSpy.put).toHaveBeenCalledWith(
         media.MEDIA_BUCKET_KEY.registered(network, NORMALIZED_NAME),
         imageBuffer,
-        { httpMetadata: { contentType: "image/jpeg" } },
+        { httpMetadata: { contentType: "image/jpeg" }, sha256: imageHash.slice(2) },
       );
     });
 

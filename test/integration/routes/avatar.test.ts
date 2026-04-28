@@ -3,6 +3,7 @@ import * as media from "@/utils/media";
 import * as eth from "@/utils/eth";
 import * as owner from "@/utils/owner";
 import * as data from "@/utils/data";
+import * as notify from "@/utils/notify";
 import { ModuleMock } from "@test/setup/meta";
 import { env } from "cloudflare:test";
 import { normalize } from "viem/ens";
@@ -14,6 +15,10 @@ import { sha256 } from "viem/utils";
 vi.mock("@/utils/owner", () => ({
   getOwnerAndAvailable: vi.fn(),
 }) satisfies ModuleMock<typeof owner>);
+
+vi.mock("@/utils/notify", () => ({
+  notifyMediaChanged: vi.fn(),
+}) satisfies ModuleMock<typeof notify>);
 
 // Test constants
 const MOCK_NAME = "test.eth";
@@ -28,6 +33,9 @@ describe("Avatar Routes", () => {
   beforeEach(() => {
     // Reset all mocks
     vi.resetAllMocks();
+    // notifyMediaChanged returns a Promise; default vi.fn() returns undefined
+    // and that breaks `executionCtx.waitUntil(...)`.
+    vi.mocked(notify.notifyMediaChanged).mockResolvedValue(undefined);
   });
 
   const bucketSpy = {
@@ -89,19 +97,84 @@ describe("Avatar Routes", () => {
       );
 
       // Verify the function was called with correct params
-      expect(findAndPromoteUnregisteredMediaSpy).toHaveBeenCalledWith({
-        env,
-        network: "mainnet",
-        name: MOCK_NAME,
-        client: expect.anything(),
-        mediaType: "avatar",
-      });
+      expect(findAndPromoteUnregisteredMediaSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          env,
+          network: "mainnet",
+          name: MOCK_NAME,
+          client: expect.anything(),
+          mediaType: "avatar",
+        }),
+      );
 
       const putResult = await env.AVATAR_BUCKET.get(media.MEDIA_BUCKET_KEY.registered("mainnet", MOCK_NAME));
 
       assert(putResult);
       expect(putResult.httpMetadata?.contentType).toBe("image/jpeg");
       expect(await putResult.arrayBuffer()).toEqual(imageBuffer.buffer);
+
+      // Promotion fires a media.changed event with source: "promotion".
+      // The fixture is stored without R2 sha256 metadata, so this exercises
+      // the body-tee fallback path in findAndPromoteUnregisteredMedia.
+      expect(vi.mocked(notify.notifyMediaChanged)).toHaveBeenCalledWith(
+        env,
+        expect.objectContaining({
+          type: "media.changed",
+          mediaType: "avatar",
+          source: "promotion",
+          network: "mainnet",
+          name: MOCK_NAME,
+          key: media.MEDIA_BUCKET_KEY.registered("mainnet", MOCK_NAME),
+          address: TEST_ACCOUNT.address,
+          hash: sha256(imageBuffer),
+          size: imageBuffer.byteLength,
+        }),
+      );
+    });
+
+    test("promotes an unregistered avatar that already has sha256 metadata without hanging", async () => {
+      // Reproduces the case where the unregistered object was uploaded via the
+      // PUT route after we started passing `sha256:` to bucket.put. The
+      // promotion must NOT create + cancel a hash tee branch, otherwise
+      // ReadableStream.tee couples the cancel to the sibling and the GET
+      // response never resolves.
+      const imageBuffer = new Uint8Array([10, 20, 30, 40]);
+      const imageHash = sha256(imageBuffer);
+
+      await env.AVATAR_BUCKET.put(
+        media.MEDIA_BUCKET_KEY.unregistered("mainnet", MOCK_NAME, TEST_ACCOUNT.address),
+        imageBuffer,
+        {
+          httpMetadata: { contentType: "image/jpeg" },
+          sha256: imageHash.slice(2),
+        },
+      );
+
+      vi.mocked(owner.getOwnerAndAvailable).mockResolvedValue({
+        owner: TEST_ACCOUNT.address,
+        available: false,
+      });
+
+      // Bound the request so a hang fails the test instead of timing out the suite.
+      const res = await Promise.race([
+        app.request(`/${MOCK_NAME}`, {}, env),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("promotion request hung")), 2000),
+        ),
+      ]);
+
+      expect(res.status).toBe(200);
+      expect(new Uint8Array(await res.arrayBuffer())).toEqual(imageBuffer);
+
+      // Hash should come from R2 metadata, matching the value the upload stored.
+      expect(vi.mocked(notify.notifyMediaChanged)).toHaveBeenCalledWith(
+        env,
+        expect.objectContaining({
+          source: "promotion",
+          hash: imageHash,
+          size: imageBuffer.byteLength,
+        }),
+      );
     });
 
     test("returns 404 when no avatar exists for the name", async () => {
@@ -323,7 +396,7 @@ describe("Avatar Routes", () => {
       });
 
       const dataURL = "data:image/jpeg;base64,test123123";
-      const { res, imageBuffer } = await uploadAvatar(NORMALIZED_NAME, dataURL, "mainnet");
+      const { res, imageBuffer, imageHash } = await uploadAvatar(NORMALIZED_NAME, dataURL, "mainnet");
 
       expect(res.status).toBe(200);
       expect(await res.json()).toMatchInlineSnapshot(`
@@ -332,11 +405,28 @@ describe("Avatar Routes", () => {
         }
       `);
 
-      // Verify the file was uploaded to the registered path
+      // Verify the file was uploaded to the registered path with sha256 set
+      // so promotion later can read it back from R2 metadata
       expect(bucketSpy.put).toHaveBeenCalledWith(
         media.MEDIA_BUCKET_KEY.registered("mainnet", NORMALIZED_NAME),
         imageBuffer,
-        { httpMetadata: { contentType: "image/jpeg" } },
+        { httpMetadata: { contentType: "image/jpeg" }, sha256: imageHash.slice(2) },
+      );
+
+      // Verify a media.changed event was emitted to subscribers
+      expect(vi.mocked(notify.notifyMediaChanged)).toHaveBeenCalledWith(
+        env,
+        expect.objectContaining({
+          type: "media.changed",
+          mediaType: "avatar",
+          source: "upload",
+          network: "mainnet",
+          name: NORMALIZED_NAME,
+          hash: imageHash,
+          size: imageBuffer.byteLength,
+          key: media.MEDIA_BUCKET_KEY.registered("mainnet", NORMALIZED_NAME),
+          address: TEST_ACCOUNT.address,
+        }),
       );
     });
 
@@ -348,7 +438,7 @@ describe("Avatar Routes", () => {
       });
 
       const dataURL = "data:image/jpeg;base64,test123123";
-      const { res, imageBuffer } = await uploadAvatar(NORMALIZED_NAME, dataURL, "mainnet");
+      const { res, imageBuffer, imageHash } = await uploadAvatar(NORMALIZED_NAME, dataURL, "mainnet");
 
       expect(res.status).toBe(200);
       expect(await res.json()).toMatchInlineSnapshot(`
@@ -361,7 +451,17 @@ describe("Avatar Routes", () => {
       expect(bucketSpy.put).toHaveBeenCalledWith(
         media.MEDIA_BUCKET_KEY.unregistered("mainnet", NORMALIZED_NAME, TEST_ACCOUNT.address),
         imageBuffer,
-        { httpMetadata: { contentType: "image/jpeg" } },
+        { httpMetadata: { contentType: "image/jpeg" }, sha256: imageHash.slice(2) },
+      );
+
+      // Notify uses the unregistered key for available names
+      expect(vi.mocked(notify.notifyMediaChanged)).toHaveBeenCalledWith(
+        env,
+        expect.objectContaining({
+          mediaType: "avatar",
+          source: "upload",
+          key: media.MEDIA_BUCKET_KEY.unregistered("mainnet", NORMALIZED_NAME, TEST_ACCOUNT.address),
+        }),
       );
     });
 
@@ -391,8 +491,9 @@ describe("Avatar Routes", () => {
       expect(res.status).toBe(400);
       expect(await res.text()).toBe("Invalid signature");
 
-      // Verify no upload was attempted
+      // Verify no upload was attempted and no event was emitted
       expect(bucketSpy.put).not.toHaveBeenCalled();
+      expect(vi.mocked(notify.notifyMediaChanged)).not.toHaveBeenCalled();
     });
 
     test("returns 403 when the signature has expired", async () => {
@@ -496,6 +597,7 @@ describe("Avatar Routes", () => {
 
       expect(res.status).toBe(500);
       expect(await res.text()).toBe(`${NORMALIZED_NAME} not uploaded`);
+      expect(vi.mocked(notify.notifyMediaChanged)).not.toHaveBeenCalled();
     });
 
     test.each(MOCK_NETWORKS)("works with network %s", async (network) => {
@@ -513,7 +615,7 @@ describe("Avatar Routes", () => {
       });
 
       const dataURL = `data:image/jpeg;base64,${btoa(Array.from(imageBuffer).map(byte => String.fromCharCode(byte)).join(""))}`;
-      const { res } = await uploadAvatar(NORMALIZED_NAME, dataURL, network);
+      const { res, imageHash } = await uploadAvatar(NORMALIZED_NAME, dataURL, network);
 
       expect(res.status).toBe(200);
 
@@ -521,7 +623,7 @@ describe("Avatar Routes", () => {
       expect(bucketSpy.put).toHaveBeenCalledWith(
         media.MEDIA_BUCKET_KEY.registered(network, NORMALIZED_NAME),
         imageBuffer,
-        { httpMetadata: { contentType: "image/jpeg" } },
+        { httpMetadata: { contentType: "image/jpeg" }, sha256: imageHash.slice(2) },
       );
     });
 

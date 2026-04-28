@@ -2,7 +2,10 @@ import { createApp } from "./utils/hono";
 import { NetworkMiddlewareEnv, networkMiddleware } from "./utils/chains";
 import avatarRouter from "./routes/avatar";
 import headerRouter from "./routes/header";
+import eventsRouter from "./routes/events";
 import { cors } from "hono/cors";
+
+export { MediaNotifier } from "./durable-objects/media-notifier";
 
 const PROD_ALLOWED_ORIGIN_SUFFIXES = [
   "ens.domains",
@@ -11,45 +14,46 @@ const PROD_ALLOWED_ORIGIN_SUFFIXES = [
   "ens-app-v3.pages.dev",
   "grails.app",
   "efp.app",
-  "ethleaderboard.com"
+  "ethleaderboard.com",
 ] as const;
 
 const app = createApp();
-app.use(
-  "*",
-  cors({
-    origin: (origin, c) => {
-      const requestOrigin = c.req.header("Origin") || "";
-      // We rely on ENVIRONMENT from wrangler config
-      const isProd = c.env.ENVIRONMENT === "production";
+const corsMiddleware = cors({
+  origin: (origin, c) => {
+    const requestOrigin = c.req.header("Origin") || "";
+    const isProd = c.env.ENVIRONMENT === "production";
 
-      // If production environment: only allow subdomains of approved suffixes
-      if (isProd) {
-        try {
-          const hostname = new URL(requestOrigin).hostname;
-          const allows = (host: string, suffix: string) =>
-            host === suffix || host.endsWith(`.${suffix}`);
+    if (isProd) {
+      try {
+        const hostname = new URL(requestOrigin).hostname;
+        const allows = (host: string, suffix: string) =>
+          host === suffix || host.endsWith(`.${suffix}`);
 
-          if (PROD_ALLOWED_ORIGIN_SUFFIXES.some(suffix => allows(hostname, suffix))) {
-            return requestOrigin; // reflect approved origin
-          }
+        if (PROD_ALLOWED_ORIGIN_SUFFIXES.some(suffix => allows(hostname, suffix))) {
+          return requestOrigin;
         }
-        catch {
-          // If it's not a valid URL, deny
-        }
-        return ""; // empty => disallowed
       }
+      catch {
+        // not a valid URL
+      }
+      return "";
+    }
 
-      // Otherwise (development), allow all
-      return "*";
-    },
-    allowMethods: ["GET", "PUT", "POST", "OPTIONS", "DELETE"],
-  }),
-);
+    return "*";
+  },
+  allowMethods: ["GET", "PUT", "POST", "OPTIONS", "DELETE"],
+});
+
+// Hono's cors clones the route response to inject headers; cloning a 101 fails because Response forbids 1xx.
+app.use("*", async (c, next) => {
+  if (c.req.header("Upgrade")?.toLowerCase() === "websocket") return next();
+  return corsMiddleware(c, next);
+});
 const networkRouter = createApp<NetworkMiddlewareEnv>().use(networkMiddleware);
 
 networkRouter.route("/", avatarRouter);
 networkRouter.route("/", headerRouter);
+networkRouter.route("/", eventsRouter);
 
 app.route("/", networkRouter);
 app.route("/:network", networkRouter);

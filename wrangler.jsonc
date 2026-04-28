@@ -27,6 +27,20 @@
             "preview_bucket_name": "preview-header-storage"
         }
     ],
+    "durable_objects": {
+        "bindings": [
+            {
+                "name": "MEDIA_NOTIFIER",
+                "class_name": "MediaNotifier"
+            }
+        ]
+    },
+    "migrations": [
+        {
+            "tag": "v1",
+            "new_classes": ["MediaNotifier"]
+        }
+    ],
     "vars": {
         "ENVIRONMENT": "dev"
     },
@@ -34,12 +48,64 @@
         "staging": {
             "vars": {
                 "ENVIRONMENT": "staging"
-            }
+            },
+            "r2_buckets": [
+                {
+                    "binding": "AVATAR_BUCKET",
+                    "bucket_name": "avatar-storage",
+                    "preview_bucket_name": "preview-avatar-storage"
+                },
+                {
+                    "binding": "HEADER_BUCKET",
+                    "bucket_name": "header-storage",
+                    "preview_bucket_name": "preview-header-storage"
+                }
+            ],
+            "durable_objects": {
+                "bindings": [
+                    {
+                        "name": "MEDIA_NOTIFIER",
+                        "class_name": "MediaNotifier"
+                    }
+                ]
+            },
+            "migrations": [
+                {
+                    "tag": "v1",
+                    "new_classes": ["MediaNotifier"]
+                }
+            ]
         },
         "production": {
             "vars": {
                 "ENVIRONMENT": "production"
-            }
+            },
+            "r2_buckets": [
+                {
+                    "binding": "AVATAR_BUCKET",
+                    "bucket_name": "avatar-storage",
+                    "preview_bucket_name": "preview-avatar-storage"
+                },
+                {
+                    "binding": "HEADER_BUCKET",
+                    "bucket_name": "header-storage",
+                    "preview_bucket_name": "preview-header-storage"
+                }
+            ],
+            "durable_objects": {
+                "bindings": [
+                    {
+                        "name": "MEDIA_NOTIFIER",
+                        "class_name": "MediaNotifier"
+                    }
+                ]
+            },
+            "migrations": [
+                {
+                    "tag": "v1",
+                    "new_classes": ["MediaNotifier"]
+                }
+            ]
         }
     }
     // "d1_databases": [
