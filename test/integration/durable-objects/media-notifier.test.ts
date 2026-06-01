@@ -23,6 +23,19 @@ const subscribe = async (
   return ws;
 };
 
+const subscribeGlobal = async (instance: string) => {
+  const id = env.MEDIA_NOTIFIER.idFromName(instance);
+  const stub = env.MEDIA_NOTIFIER.get(id);
+  const res = await stub.fetch("https://do/subscribe?scope=global", {
+    headers: { Upgrade: "websocket" },
+  });
+  expect(res.status).toBe(101);
+  const ws = res.webSocket;
+  if (!ws) throw new Error("DO did not return a webSocket");
+  ws.accept();
+  return ws;
+};
+
 const notify = (instance: string, payload: ChangePayload) => {
   const id = env.MEDIA_NOTIFIER.idFromName(instance);
   return env.MEDIA_NOTIFIER.get(id).notify(payload);
@@ -142,6 +155,31 @@ describe("MediaNotifier DO", () => {
   test("notify with no matching subscribers returns delivered: 0 and does not throw", async () => {
     const result = await notify("empty", samplePayload({ name: "nobody.eth" }));
     expect(result).toEqual({ delivered: 0 });
+  });
+
+  test("global subscribers receive a hello frame", async () => {
+    const ws = await subscribeGlobal("global-hello");
+    expect(JSON.parse(await nextMessage(ws))).toEqual({ type: "hello", protocol: 1 });
+  });
+
+  test("global subscribers receive every change regardless of tag", async () => {
+    const instance = "global-fanout";
+    await subscribe(instance, "mainnet", "alice.eth", "avatar");
+    await subscribeGlobal(instance);
+
+    // A change for a different name/type/network reaches only the global sub.
+    const other = await notify(
+      instance,
+      samplePayload({ network: "sepolia", name: "bob.eth", mediaType: "header" }),
+    );
+    expect(other).toEqual({ delivered: 1 });
+
+    // A change matching the specific sub reaches both it and the global sub.
+    const matching = await notify(
+      instance,
+      samplePayload({ network: "mainnet", name: "alice.eth", mediaType: "avatar" }),
+    );
+    expect(matching).toEqual({ delivered: 2 });
   });
 
   test("closed sockets are removed from the subscriber set", async () => {

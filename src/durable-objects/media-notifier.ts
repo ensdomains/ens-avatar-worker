@@ -19,6 +19,10 @@ export type ChangePayload = {
 const NETWORKS = new Set<Network>(["mainnet", "goerli", "sepolia", "holesky", "localhost"]);
 const MEDIA_TYPES = new Set<MediaType>(["avatar", "header"]);
 
+// Firehose subscribers land here. Real tags are always `network:name:mediaType`,
+// so "*" can never collide with one.
+const GLOBAL_TAG = "*";
+
 // ":" is rejected by ENSIP-15 normalization, so the separator is unambiguous.
 const tagFor = (network: Network, name: string, mediaType: MediaType) =>
   `${network}:${name}:${mediaType}`;
@@ -37,24 +41,36 @@ export class MediaNotifier extends DurableObject<Env> {
       return new Response("expected websocket", { status: 426 });
     }
 
-    const network = url.searchParams.get("network");
-    const name = url.searchParams.get("name");
-    const mediaType = url.searchParams.get("mediaType");
-
-    if (!name || !network || !NETWORKS.has(network as Network)) {
-      return new Response("invalid network or name", { status: 400 });
+    let tag: string;
+    if (url.searchParams.get("scope") === "global") {
+      tag = GLOBAL_TAG;
     }
-    if (!mediaType || !MEDIA_TYPES.has(mediaType as MediaType)) {
-      return new Response("invalid mediaType", { status: 400 });
-    }
+    else {
+      const network = url.searchParams.get("network");
+      const name = url.searchParams.get("name");
+      const mediaType = url.searchParams.get("mediaType");
 
-    const tag = tagFor(network as Network, name, mediaType as MediaType);
+      if (!name || !network || !NETWORKS.has(network as Network)) {
+        return new Response("invalid network or name", { status: 400 });
+      }
+      if (!mediaType || !MEDIA_TYPES.has(mediaType as MediaType)) {
+        return new Response("invalid mediaType", { status: 400 });
+      }
+
+      tag = tagFor(network as Network, name, mediaType as MediaType);
+    }
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
     server.accept();
+    this.#addSubscriber(tag, server);
+    server.send(JSON.stringify({ type: "hello", protocol: 1 }));
 
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  #addSubscriber(tag: string, server: WebSocket): void {
     let bucket = this.#subscribers.get(tag);
     if (!bucket) {
       bucket = new Set();
@@ -70,30 +86,31 @@ export class MediaNotifier extends DurableObject<Env> {
     };
     server.addEventListener("close", cleanup);
     server.addEventListener("error", cleanup);
-
-    server.send(JSON.stringify({ type: "hello", protocol: 1 }));
-
-    return new Response(null, { status: 101, webSocket: client });
   }
 
   async notify(payload: ChangePayload): Promise<{ delivered: number }> {
     const message = JSON.stringify(payload);
     const tag = tagFor(payload.network, payload.name, payload.mediaType);
-    const bucket = this.#subscribers.get(tag);
 
+    return {
+      delivered:
+        this.#send(message, this.#subscribers.get(tag))
+        + this.#send(message, this.#subscribers.get(GLOBAL_TAG)),
+    };
+  }
+
+  #send(message: string, bucket: Set<WebSocket> | undefined): number {
+    if (!bucket) return 0;
     let delivered = 0;
-    if (bucket) {
-      for (const ws of bucket) {
-        try {
-          ws.send(message);
-          delivered += 1;
-        }
-        catch {
-          bucket.delete(ws);
-        }
+    for (const ws of bucket) {
+      try {
+        ws.send(message);
+        delivered += 1;
+      }
+      catch {
+        bucket.delete(ws);
       }
     }
-
-    return { delivered };
+    return delivered;
   }
 }

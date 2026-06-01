@@ -2,7 +2,7 @@ import { createApp } from "./utils/hono";
 import { NetworkMiddlewareEnv, networkMiddleware } from "./utils/chains";
 import avatarRouter from "./routes/avatar";
 import headerRouter from "./routes/header";
-import eventsRouter from "./routes/events";
+import eventsRouter, { globalEventsHandler } from "./routes/events";
 import { cors } from "hono/cors";
 
 export { MediaNotifier } from "./durable-objects/media-notifier";
@@ -49,6 +49,12 @@ app.use("*", async (c, next) => {
   if (c.req.header("Upgrade")?.toLowerCase() === "websocket") return next();
   return corsMiddleware(c, next);
 });
+
+// Cross-network firehose. Registered before the :name routers so the static
+// path wins over the /:name wildcard. Network-agnostic, so it sits outside the
+// network middleware.
+app.get("/events", globalEventsHandler);
+
 const networkRouter = createApp<NetworkMiddlewareEnv>().use(networkMiddleware);
 
 networkRouter.route("/", avatarRouter);
