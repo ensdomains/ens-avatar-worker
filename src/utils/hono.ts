@@ -14,6 +14,8 @@ export const waitUntil = (c: Context, promise: Promise<unknown>): void => {
     c.executionCtx.waitUntil(promise);
   }
   catch {
-    void promise.catch(() => {});
+    // No execution context to hand the work to. Run it detached, but surface
+    // failures rather than swallowing them.
+    void promise.catch(err => console.error("waitUntil fallback task failed", err));
   }
 };

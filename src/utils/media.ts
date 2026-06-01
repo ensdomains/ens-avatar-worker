@@ -112,6 +112,8 @@ export const findAndPromoteUnregisteredMedia = async ({
     hash = toHex(new Uint8Array(sha256Buffer));
   }
   else {
+    // Only objects stored before uploads carried sha256 metadata reach this.
+    // Uploads are capped at 512 KB (MAX_IMAGE_SIZE), so buffering is bounded.
     const buf = await new Response(hashBranch!).arrayBuffer();
     hash = sha256(new Uint8Array(buf));
   }

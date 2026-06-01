@@ -63,6 +63,11 @@ export class MediaNotifier extends DurableObject<Env> {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
+    // Standard accept() (not the hibernation API) keeps the DO in memory while
+    // any socket is open, so the in-memory subscriber map can't desync via
+    // eviction. Hibernation would cut idle cost but is deferred: the pinned
+    // vitest-pool-workers version can't exercise it, and a single global DO
+    // rarely idles, so the saving would be small.
     server.accept();
     this.#addSubscriber(tag, server);
     server.send(JSON.stringify({ type: "hello", protocol: 1 }));
