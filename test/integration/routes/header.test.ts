@@ -1,4 +1,4 @@
-import { describe, expect, test, vi, beforeEach, assert } from "vitest";
+import { describe, expect, test, vi, beforeEach, afterEach, assert } from "vitest";
 import * as media from "@/utils/media";
 import * as eth from "@/utils/eth";
 import * as owner from "@/utils/owner";
@@ -23,11 +23,33 @@ const NORMALIZED_NAME = normalize("test.eth");
 // when not explicitly provided, holesky does, causing cross-chain signature verification to fail.
 const MOCK_NETWORKS = ["mainnet", "goerli", "sepolia"] as const;
 const MAX_IMAGE_SIZE = 1024 * 512;
+const WEBHOOK_URL = "https://ens-metadata-v2.ensdomains.workers.dev/webhook";
+const WEBHOOK_SECRET = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+
+const createExecutionContext = () => {
+  const waitUntilPromises: Promise<unknown>[] = [];
+  const executionCtx = {
+    waitUntil: vi.fn((promise: Promise<unknown>) => {
+      waitUntilPromises.push(promise);
+    }),
+    passThroughOnException: vi.fn(),
+    props: {},
+  };
+
+  return { executionCtx, waitUntilPromises };
+};
+
+const getWebhookCalls = (fetchSpy: ReturnType<typeof vi.fn>) =>
+  fetchSpy.mock.calls.filter(([url]) => url === WEBHOOK_URL);
 
 describe("Header Routes", () => {
   beforeEach(() => {
     // Reset all mocks
     vi.resetAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   const bucketSpy = {
@@ -284,7 +306,14 @@ describe("Header Routes", () => {
     // Helper function to perform header uploads with proper signing
     // This abstracts the complexity of creating valid upload requests with signatures
     // and returns the response along with the test data for verification
-    const uploadHeader = async (name: string, dataURL: string, network: string, expiry?: string) => {
+    const uploadHeader = async (
+      name: string,
+      dataURL: string,
+      network: string,
+      expiry?: string,
+      requestEnv: Env = env,
+      executionCtx?: ExecutionContext,
+    ) => {
       const imageBuffer = data.dataURLToBytes(dataURL).bytes;
       const imageHash = sha256(imageBuffer);
 
@@ -301,7 +330,7 @@ describe("Header Routes", () => {
           sig: testData.sig,
           unverifiedAddress: testData.address,
         }),
-      }, env);
+      }, requestEnv, executionCtx);
 
       return {
         res,
@@ -334,6 +363,43 @@ describe("Header Routes", () => {
         imageBuffer,
         { httpMetadata: { contentType: "image/jpeg" } },
       );
+    });
+
+    test("queues metadata cache invalidation for successful sepolia header upload", async () => {
+      vi.spyOn(eth, "getVerifiedAddress").mockResolvedValue(TEST_ACCOUNT.address);
+      vi.mocked(owner.getOwnerAndAvailable).mockResolvedValue({
+        available: false,
+        owner: TEST_ACCOUNT.address,
+      });
+      const fetchSpy = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+      vi.stubGlobal("fetch", fetchSpy);
+      const { executionCtx, waitUntilPromises } = createExecutionContext();
+      const requestEnv = {
+        ...env,
+        METADATA_WEBHOOK_URL: WEBHOOK_URL,
+        METADATA_WEBHOOK_SECRET: WEBHOOK_SECRET,
+      } as Env;
+
+      const { res } = await uploadHeader(
+        NORMALIZED_NAME,
+        "data:image/jpeg;base64,test123123",
+        "sepolia",
+        undefined,
+        requestEnv,
+        executionCtx,
+      );
+
+      expect(res.status).toBe(200);
+      expect(executionCtx.waitUntil).toHaveBeenCalledTimes(1);
+      await Promise.all(waitUntilPromises);
+      const webhookCalls = getWebhookCalls(fetchSpy);
+      expect(webhookCalls).toHaveLength(1);
+      const [, init] = webhookCalls[0];
+      expect(JSON.parse(init.body as string)).toMatchObject({
+        event_type: "HeaderUpdated",
+        protocol: "v2",
+        name: NORMALIZED_NAME,
+      });
     });
 
     test("returns 200 when upload is successful for an available name", async () => {
@@ -519,6 +585,96 @@ describe("Header Routes", () => {
         imageBuffer,
         { httpMetadata: { contentType: "image/jpeg" } },
       );
+    });
+
+    test("does not call metadata webhook for goerli header uploads", async () => {
+      vi.spyOn(eth, "getVerifiedAddress").mockResolvedValue(TEST_ACCOUNT.address);
+      vi.mocked(owner.getOwnerAndAvailable).mockResolvedValue({
+        available: false,
+        owner: TEST_ACCOUNT.address,
+      });
+      const fetchSpy = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+      vi.stubGlobal("fetch", fetchSpy);
+      const { executionCtx, waitUntilPromises } = createExecutionContext();
+      const requestEnv = {
+        ...env,
+        METADATA_WEBHOOK_URL: WEBHOOK_URL,
+        METADATA_WEBHOOK_SECRET: WEBHOOK_SECRET,
+      } as Env;
+
+      const { res } = await uploadHeader(
+        NORMALIZED_NAME,
+        "data:image/jpeg;base64,test123123",
+        "goerli",
+        undefined,
+        requestEnv,
+        executionCtx,
+      );
+
+      expect(res.status).toBe(200);
+      await Promise.all(waitUntilPromises);
+      expect(getWebhookCalls(fetchSpy)).toHaveLength(0);
+    });
+
+    test("returns 200 when header metadata webhook throws", async () => {
+      vi.spyOn(eth, "getVerifiedAddress").mockResolvedValue(TEST_ACCOUNT.address);
+      vi.mocked(owner.getOwnerAndAvailable).mockResolvedValue({
+        available: false,
+        owner: TEST_ACCOUNT.address,
+      });
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
+      const { executionCtx, waitUntilPromises } = createExecutionContext();
+      const requestEnv = {
+        ...env,
+        METADATA_WEBHOOK_URL: WEBHOOK_URL,
+        METADATA_WEBHOOK_SECRET: WEBHOOK_SECRET,
+      } as Env;
+
+      const { res } = await uploadHeader(
+        NORMALIZED_NAME,
+        "data:image/jpeg;base64,test123123",
+        "mainnet",
+        undefined,
+        requestEnv,
+        executionCtx,
+      );
+
+      expect(res.status).toBe(200);
+      await expect(Promise.all(waitUntilPromises)).resolves.toBeDefined();
+    });
+
+    test("does not queue metadata webhook when header upload fails", async () => {
+      vi.spyOn(eth, "getVerifiedAddress").mockResolvedValue(TEST_ACCOUNT.address);
+      vi.mocked(owner.getOwnerAndAvailable).mockResolvedValue({
+        available: false,
+        owner: TEST_ACCOUNT.address,
+      });
+      bucketSpy.put.mockResolvedValue({
+        key: "wrong-key",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+      const fetchSpy = vi.fn();
+      vi.stubGlobal("fetch", fetchSpy);
+      const { executionCtx } = createExecutionContext();
+      const requestEnv = {
+        ...env,
+        METADATA_WEBHOOK_URL: WEBHOOK_URL,
+        METADATA_WEBHOOK_SECRET: WEBHOOK_SECRET,
+      } as Env;
+
+      const { res } = await uploadHeader(
+        NORMALIZED_NAME,
+        "data:image/jpeg;base64,test123123",
+        "mainnet",
+        undefined,
+        requestEnv,
+        executionCtx,
+      );
+
+      expect(res.status).toBe(500);
+      expect(executionCtx.waitUntil).not.toHaveBeenCalled();
+      expect(getWebhookCalls(fetchSpy)).toHaveLength(0);
     });
 
     test("returns 400 when the request is missing required parameters", async () => {

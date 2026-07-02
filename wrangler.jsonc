@@ -33,12 +33,14 @@
     "env": {
         "staging": {
             "vars": {
-                "ENVIRONMENT": "staging"
+                "ENVIRONMENT": "staging",
+                "METADATA_WEBHOOK_URL": "https://ens-metadata-v2.ensdomains.workers.dev/webhook"
             }
         },
         "production": {
             "vars": {
-                "ENVIRONMENT": "production"
+                "ENVIRONMENT": "production",
+                "METADATA_WEBHOOK_URL": "https://ens-metadata-v2.ensdomains.workers.dev/webhook"
             }
         }
     }
