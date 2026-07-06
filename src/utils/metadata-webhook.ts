@@ -5,7 +5,9 @@ export type MetadataWebhookResult = "sent" | "skipped";
 
 type MetadataWebhookProtocol = "v1" | "v2";
 
-type MetadataWebhookEnv = Partial<Pick<Env, "METADATA_WEBHOOK_URL" | "METADATA_WEBHOOK_SECRET">>;
+const METADATA_SERVICE_WEBHOOK_URL = "https://ens-metadata-v2.ensdomains.workers.dev/webhook";
+
+type MetadataWebhookEnv = Partial<Pick<Env, "METADATA_SERVICE_WEBHOOK_SECRET">>;
 
 type SendMetadataCacheInvalidationOptions = {
   env: MetadataWebhookEnv;
@@ -74,7 +76,7 @@ export const sendMetadataCacheInvalidation = async ({
   source,
 }: SendMetadataCacheInvalidationOptions): Promise<MetadataWebhookResult> => {
   const protocol = getProtocol(network);
-  if (!protocol || !env.METADATA_WEBHOOK_URL || !env.METADATA_WEBHOOK_SECRET) {
+  if (!protocol || !env.METADATA_SERVICE_WEBHOOK_SECRET) {
     return "skipped";
   }
 
@@ -93,11 +95,11 @@ export const sendMetadataCacheInvalidation = async ({
   };
   const rawBody = JSON.stringify(event);
   const signature = await createWebhookSignature(
-    env.METADATA_WEBHOOK_SECRET,
+    env.METADATA_SERVICE_WEBHOOK_SECRET,
     `${timestamp}.${rawBody}`,
   );
 
-  const response = await fetcher(env.METADATA_WEBHOOK_URL, {
+  const response = await fetcher(METADATA_SERVICE_WEBHOOK_URL, {
     method: "POST",
     headers: {
       "content-type": "application/json",
