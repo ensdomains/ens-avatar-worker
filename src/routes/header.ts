@@ -10,6 +10,7 @@ import { getOwnerAndAvailable } from "@/utils/owner";
 import { dataURLToBytes, R2GetOrHead } from "@/utils/data";
 import { findAndPromoteUnregisteredMedia, MEDIA_BUCKET_KEY } from "@/utils/media";
 import { isSubname, isParentOwner } from "@/utils/subname";
+import { sendMetadataCacheInvalidation } from "@/utils/metadata-webhook";
 
 const router = createApp<NetworkMiddlewareEnv>();
 
@@ -139,6 +140,23 @@ router.put("/:name/h", clientMiddleware, vValidator("json", uploadSchema), async
   });
 
   if (uploaded.key === key) {
+    const cacheInvalidation = sendMetadataCacheInvalidation({
+      env: c.env,
+      mediaType: "header",
+      name,
+      network,
+      source: "ens-avatar-worker",
+    }).catch((error) => {
+      console.error(`Failed to invalidate metadata cache for header upload ${name} on ${network}`, error);
+    });
+
+    try {
+      c.executionCtx.waitUntil(cacheInvalidation);
+    }
+    catch {
+      void cacheInvalidation;
+    }
+
     return c.json({ message: "uploaded" }, 200);
   }
   else {
