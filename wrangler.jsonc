@@ -48,6 +48,23 @@
                 "ENVIRONMENT": "staging"
             }
         },
+        "staging-v2": {
+            "name": "avatar-upload-staging-v2",
+            "r2_buckets": [
+                {
+                    "binding": "AVATAR_BUCKET",
+                    "bucket_name": "staging-avatar-storage"
+                },
+                {
+                    "binding": "HEADER_BUCKET",
+                    "bucket_name": "staging-header-storage"
+                }
+            ],
+            "vars": {
+                "ENVIRONMENT": "staging",
+                "WEB3_ENDPOINT_MAP": "{\"mainnet\":\"https://cloudflare-eth.com\",\"sepolia\":\"https://ethereum-sepolia.publicnode.com\",\"holesky\":\"https://ethereum-holesky.publicnode.com\",\"goerli\":\"https://ethereum-goerli.publicnode.com\",\"localhost\":\"http://localhost:8545\"}"
+            }
+        },
         "production": {
             "name": "avatar-upload",
             "r2_buckets": [
