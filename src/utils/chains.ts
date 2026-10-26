@@ -5,7 +5,7 @@ import { createMiddleware } from "hono/factory";
 import { http } from "viem";
 import { addLocalhostEnsContracts } from "./localhost-chain";
 import { ensPublicActions, ensSubgraphActions } from "@ensdomains/ensjs";
-import { createPublicClient } from "viem";
+import { createClient } from "viem";
 import { Context } from "hono";
 import { getErrorMessage } from "./error";
 
@@ -81,22 +81,23 @@ export type ClientMiddlewareEnv = NetworkMiddlewareEnv & {
 };
 export const clientMiddleware = createMiddleware<BaseEnv & ClientMiddlewareEnv>(
   async (c, next) => {
-    const configuredMap = c.env.WEB3_ENDPOINT_MAP;
-    const endpointMap = (typeof configuredMap === "string" ? JSON.parse(configuredMap) : configuredMap ?? {}) as Record<
+    const endpointMap = (typeof c.env.WEB3_ENDPOINT_MAP === "string"
+      ? JSON.parse(c.env.WEB3_ENDPOINT_MAP)
+      : c.env.WEB3_ENDPOINT_MAP ?? {}) as Record<
       Network,
       string
     >;
 
     // Did not use createEnsPublicClinet because it does not support localhost
-    const client = createPublicClient({
+    const client = createClient({
       chain: c.var.chain,
       key: "ensPublic",
       name: "ENS Public Client",
-      ccipRead: false,
-      transport: http(endpointMap[c.var.network], { timeout: 5000, retryCount: 0 }),
+      transport: http(endpointMap[c.var.network]),
+      type: "ensPublicClient",
     })
       .extend(ensPublicActions)
-      .extend(ensSubgraphActions) as unknown as EnsPublicClient;
+      .extend(ensSubgraphActions) as EnsPublicClient;
 
     c.set("client", client);
 

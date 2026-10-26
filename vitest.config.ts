@@ -4,9 +4,6 @@ export default defineWorkersConfig({
   test: {
     poolOptions: {
       workers: {
-        // Reuse one runtime to avoid exhausting local module-fetch sockets
-        // while loading both ENS protocol libraries. Storage stays isolated.
-        singleWorker: true,
         wrangler: { configPath: "./wrangler.jsonc" },
       },
     },

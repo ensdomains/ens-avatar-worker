@@ -1,6 +1,7 @@
 import { EnsPublicClient } from "@/utils/chains";
 import { typedDataParameters } from "@/utils/eth";
-import { Address, createPublicClient, createWalletClient, Hex, http } from "viem";
+import { createEnsPublicClient, createEnsWalletClient } from "@ensdomains/ensjs";
+import { Address, Hex, http } from "viem";
 
 import {
   mnemonicToAccount,
@@ -11,16 +12,16 @@ export const TEST_ACCOUNT = mnemonicToAccount(
   "test test test test test test test test test test test junk",
 );
 
-export const TEST_WALLET_CLIENT = createWalletClient({
+export const TEST_WALLET_CLIENT = createEnsWalletClient({
   account: TEST_ACCOUNT,
   chain: mainnet,
   transport: http(),
 });
 
-export const TEST_PUBLIC_CLIENT = createPublicClient({
+export const TEST_PUBLIC_CLIENT = createEnsPublicClient({
   chain: mainnet,
   transport: http(),
-}) as unknown as EnsPublicClient;
+}) as EnsPublicClient;
 
 /**
  * Creates test data for avatar/header upload testing

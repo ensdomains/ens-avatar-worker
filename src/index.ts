@@ -3,8 +3,6 @@ import { NetworkMiddlewareEnv, networkMiddleware } from "./utils/chains";
 import avatarRouter from "./routes/avatar";
 import headerRouter from "./routes/header";
 import { cors } from "hono/cors";
-import { HTTPException } from "hono/http-exception";
-import { boundUploadBody } from "./utils/upload";
 
 const PROD_ALLOWED_ORIGIN_SUFFIXES = [
   "ens.domains",
@@ -22,15 +20,6 @@ app.get("/health", c => c.json({
   commit: c.env.SOURCE_COMMIT ?? "unknown",
   environment: c.env.ENVIRONMENT,
 }));
-app.use("*", async (c, next) => {
-  c.header("X-Content-Type-Options", "nosniff");
-  await next();
-});
-app.onError((error, c) => {
-  if (error instanceof HTTPException) return error.getResponse();
-  console.error("Image request failed", error.name);
-  return c.text("Image service is temporarily unavailable", 503);
-});
 app.use(
   "*",
   cors({
@@ -62,7 +51,6 @@ app.use(
     allowMethods: ["GET", "PUT", "POST", "OPTIONS", "DELETE"],
   }),
 );
-app.use("*", boundUploadBody);
 const networkRouter = createApp<NetworkMiddlewareEnv>().use(networkMiddleware);
 
 networkRouter.route("/", avatarRouter);

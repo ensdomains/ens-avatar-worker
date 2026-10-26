@@ -1,6 +1,6 @@
 import { EnsPublicClient } from "./chains";
+import { getSupportedHcaOwner } from "./hca";
 import type { Address } from "viem";
-import { getV2Ownership } from "./ens-v2";
 
 export const getOwnerAndAvailable = async ({
   client,
@@ -8,9 +8,7 @@ export const getOwnerAndAvailable = async ({
 }: {
   client: EnsPublicClient;
   name: string;
-}): Promise<{ owner: Address | null; available: boolean; protocol?: "v1" | "v2" }> => {
-  const v2 = await getV2Ownership(client, name);
-  if (v2) return v2;
+}): Promise<{ owner: Address | null; available: boolean; signingOwner?: Address | null }> => {
   const labels = name.split(".");
   const is2LDDotEth = labels.length === 2 && labels.at(-1) === "eth";
 
@@ -19,9 +17,11 @@ export const getOwnerAndAvailable = async ({
     is2LDDotEth ? client.getAvailable({ name }) : undefined,
   ]);
 
+  const owner = ownership?.owner ?? null;
+  const isAvailable = available ?? !owner;
   return {
-    owner: ownership?.owner ?? null,
-    available: available ?? !ownership?.owner,
-    protocol: "v1",
+    owner,
+    available: isAvailable,
+    signingOwner: owner && !isAvailable ? await getSupportedHcaOwner(client, owner) : null,
   };
 };

@@ -10,11 +10,10 @@
     },
     "dependencies": {
         "@ensdomains/ensjs": "^4.0.2",
-        "@ensdomains/ensjs-v2": "npm:@ensdomains/ensjs@5.2.5",
         "@hono/valibot-validator": "^0.5.2",
         "hono": "^4.7.4",
         "valibot": "1.0.0-rc.4",
-        "viem": "^2.57.7"
+        "viem": "^2.23.10"
     },
     "devDependencies": {
         "@cloudflare/vitest-pool-workers": "^0.8.0",
