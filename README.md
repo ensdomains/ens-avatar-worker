@@ -51,4 +51,4 @@ The legacy ENS ownership lookup is unchanged. For names held by a supported stan
 
 This release only adds HCA compatibility and the prefix-free image digest signed by Manager. ENSv2 registry resolution, resolver delegates and broader upload hardening are deferred.
 
-The branch deploys only to `avatar-upload-staging` using `wrangler.staging.jsonc`. Production configuration and the production release workflow are unchanged. `/health` reports the deployed staging commit.
+Deployment is deferred for team discussion. This PR adds no deployment automation or staging configuration. The existing production release workflow is unchanged.

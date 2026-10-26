@@ -1,5 +1,4 @@
 interface Env {
-  SOURCE_COMMIT?: string;
   WEB3_ENDPOINT_MAP?: string | Record<string, string>;
   LOCALHOST_ENS_REGISTRY?: string;
   LOCALHOST_ENS_NAME_WRAPPER?: string;

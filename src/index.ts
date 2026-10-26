@@ -15,11 +15,6 @@ const PROD_ALLOWED_ORIGIN_SUFFIXES = [
 ] as const;
 
 const app = createApp();
-app.get("/health", c => c.json({
-  status: "ok",
-  commit: c.env.SOURCE_COMMIT ?? "unknown",
-  environment: c.env.ENVIRONMENT,
-}));
 app.use(
   "*",
   cors({
