@@ -1,0 +1,24 @@
+{
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "avatar-upload-staging",
+    "account_id": "15dcc9085cb794bb4f29d3e8177ac880",
+    "main": "src/index.ts",
+    "compatibility_date": "2026-10-26",
+    "compatibility_flags": ["nodejs_compat"],
+    "workers_dev": true,
+    "keep_vars": true,
+    "r2_buckets": [
+        {
+            "binding": "AVATAR_BUCKET",
+            "bucket_name": "staging-avatar-storage"
+        },
+        {
+            "binding": "HEADER_BUCKET",
+            "bucket_name": "staging-header-storage"
+        }
+    ],
+    "vars": {
+        "ENVIRONMENT": "staging",
+        "SOURCE_COMMIT": "local"
+    }
+}

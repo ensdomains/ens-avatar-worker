@@ -4,7 +4,6 @@ import { createApp } from "@/utils/hono";
 import { clientMiddleware, NetworkMiddlewareEnv } from "@/utils/chains";
 import { Address, isAddress, sha256 } from "viem";
 import { Hex } from "viem";
-import { normalize } from "viem/ens";
 import { getVerifiedAddress } from "@/utils/eth";
 import { getOwnerAndAvailable } from "@/utils/owner";
 import { dataURLToBytes, R2GetOrHead } from "@/utils/data";
@@ -13,12 +12,15 @@ import {
   MEDIA_BUCKET_KEY,
 } from "@/utils/media";
 import { isParentOwner, isSubname } from "@/utils/subname";
+import { isAuthorizedUpload } from "@/utils/authorization";
+import { isNormalizedName, validateExpiry } from "@/utils/upload";
 
 const router = createApp<NetworkMiddlewareEnv>();
 
 const MAX_IMAGE_SIZE = 1024 * 512;
 
 const uploadSchema = v.object({
+  name: v.optional(v.string()),
   expiry: v.pipe(
     v.string("expiry value is missing"),
     v.regex(/^\d+$/, "expiry value is not number"),
@@ -83,8 +85,11 @@ router.put(
   vValidator("json", uploadSchema),
   async (c) => {
     const name = c.req.param("name");
-    const { expiry, dataURL, sig, unverifiedAddress } = c.req.valid("json");
+    const { expiry, dataURL, sig, unverifiedAddress, name: signedName } = c.req.valid("json");
     const { network, client } = c.var;
+    if (signedName !== undefined && signedName !== name)
+      return c.text("Signed name does not match request path", 400);
+    validateExpiry(expiry);
 
     const { mime, bytes } = dataURLToBytes(dataURL);
     const hash = sha256(bytes);
@@ -96,8 +101,12 @@ router.put(
     if (mime !== "image/jpeg")
       return c.text("File must be of type image/jpeg", 415);
 
-    if (name !== normalize(name))
+    if (!isNormalizedName(name))
       return c.text("Name must be in normalized form", 400);
+
+    if (bytes.byteLength > MAX_IMAGE_SIZE) {
+      return c.text("Image is too large", 413);
+    }
 
     const verifiedAddress = await getVerifiedAddress({
       client,
@@ -113,16 +122,15 @@ router.put(
       return c.text("Invalid signature", 400);
     }
 
-    if (bytes.byteLength > MAX_IMAGE_SIZE) {
-      return c.text("Image is too large", 413);
-    }
-
-    const { available, owner } = await getOwnerAndAvailable({ client, name });
+    const { available, owner, protocol } = await getOwnerAndAvailable({ client, name });
     if (!available) {
       if (!owner) {
         return c.text("Name not found", 404);
       }
-      else if (verifiedAddress !== owner) {
+      else if (!(await isAuthorizedUpload({
+        client, owner, protocol, signer: verifiedAddress,
+        name, kind: "avatar", imageUrl: c.req.url.split("?")[0],
+      }))) {
         return c.text(
           `Address ${verifiedAddress} is not the owner of ${name}`,
           403,

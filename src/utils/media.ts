@@ -1,5 +1,6 @@
 import { EnsPublicClient, Network } from "./chains";
 import { getOwnerAndAvailable } from "./owner";
+import { getSupportedHcaOwner } from "./ens-v2";
 
 export type MediaType = "avatar" | "header";
 
@@ -60,7 +61,7 @@ export const findAndPromoteUnregisteredMedia = async ({
   name: string;
   mediaType: MediaType;
 }) => {
-  const { owner, available } = await getOwnerAndAvailable({ client, name });
+  const { owner, available, protocol } = await getOwnerAndAvailable({ client, name });
 
   if (available || !owner) {
     return;
@@ -68,7 +69,12 @@ export const findAndPromoteUnregisteredMedia = async ({
 
   const bucket = getMediaBucket(env, mediaType);
 
-  const unregisteredMediaFile = await bucket.get(MEDIA_BUCKET_KEY.unregistered(network, name, owner));
+  let unregisteredMediaFile = await bucket.get(MEDIA_BUCKET_KEY.unregistered(network, name, owner));
+  if (!unregisteredMediaFile && protocol === "v2") {
+    const signingOwner = await getSupportedHcaOwner(client, owner);
+    if (signingOwner)
+      unregisteredMediaFile = await bucket.get(MEDIA_BUCKET_KEY.unregistered(network, name, signingOwner));
+  }
 
   if (!unregisteredMediaFile) {
     return;

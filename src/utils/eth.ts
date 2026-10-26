@@ -37,7 +37,7 @@ export const getVerifiedAddress = async ({
 }) => {
   const address = getAddress(unverifiedAddress);
 
-  const valid = await verifyTypedData(client as Client, {
+  const verify = (imageHash: string) => verifyTypedData(client as unknown as Client, {
     ...typedDataParameters,
     address,
     signature: sig,
@@ -45,7 +45,7 @@ export const getVerifiedAddress = async ({
       upload: uploadType,
       expiry,
       name,
-      hash,
+      hash: imageHash,
     },
   }).catch((e) => {
     console.error("Error while verifying typed data");
@@ -53,5 +53,7 @@ export const getVerifiedAddress = async ({
     return false;
   });
 
-  return valid ? address : null;
+  // Existing Manager builds sign the hex digest without its 0x prefix.
+  // Both representations bind the signature to the same uploaded bytes.
+  return await verify(hash) || await verify(hash.slice(2)) ? address : null;
 };

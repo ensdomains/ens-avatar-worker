@@ -5,7 +5,7 @@ import { createMiddleware } from "hono/factory";
 import { http } from "viem";
 import { addLocalhostEnsContracts } from "./localhost-chain";
 import { ensPublicActions, ensSubgraphActions } from "@ensdomains/ensjs";
-import { createClient } from "viem";
+import { createPublicClient } from "viem";
 import { Context } from "hono";
 import { getErrorMessage } from "./error";
 
@@ -25,16 +25,16 @@ export type Chain =
 export type Network = "mainnet" | "goerli" | "sepolia" | "holesky" | "localhost";
 export type EnsPublicClient = ReturnType<typeof createEnsPublicClient>;
 
-const isDev = (c: Context<BaseEnv & NetworkMiddlewareEnv, string, object>) => c.env.ENVIRONMENT === "dev";
+const isDev = (c?: Context<BaseEnv & NetworkMiddlewareEnv, string, object>) => c?.env.ENVIRONMENT === "dev";
 
 export const getChainFromNetwork = (
   _network: string,
-  c: Context<BaseEnv & NetworkMiddlewareEnv, string, object>,
+  c?: Context<BaseEnv & NetworkMiddlewareEnv, string, object>,
 ) => {
   const lowercased = _network.toLowerCase();
 
   // Handle localhost network in development mode
-  if (lowercased === "localhost" && isDev(c)) {
+  if (lowercased === "localhost" && c && isDev(c)) {
     return addLocalhostEnsContracts(c.env);
   }
 
@@ -81,21 +81,22 @@ export type ClientMiddlewareEnv = NetworkMiddlewareEnv & {
 };
 export const clientMiddleware = createMiddleware<BaseEnv & ClientMiddlewareEnv>(
   async (c, next) => {
-    const endpointMap = JSON.parse(c.env.WEB3_ENDPOINT_MAP ?? "{}") as Record<
+    const configuredMap = c.env.WEB3_ENDPOINT_MAP;
+    const endpointMap = (typeof configuredMap === "string" ? JSON.parse(configuredMap) : configuredMap ?? {}) as Record<
       Network,
       string
     >;
 
     // Did not use createEnsPublicClinet because it does not support localhost
-    const client = createClient({
+    const client = createPublicClient({
       chain: c.var.chain,
       key: "ensPublic",
       name: "ENS Public Client",
-      transport: http(endpointMap[c.var.network]),
-      type: "ensPublicClient",
+      ccipRead: false,
+      transport: http(endpointMap[c.var.network], { timeout: 5000, retryCount: 0 }),
     })
       .extend(ensPublicActions)
-      .extend(ensSubgraphActions) as EnsPublicClient;
+      .extend(ensSubgraphActions) as unknown as EnsPublicClient;
 
     c.set("client", client);
 

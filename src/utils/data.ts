@@ -1,10 +1,16 @@
 import { sha256 } from "viem/utils";
+import { HTTPException } from "hono/http-exception";
 
 export const dataURLToBytes = (dataURL: string) => {
-  const base64 = dataURL.split(",")[1];
-  const mime = dataURL.split(",")[0].split(":")[1].split(";")[0];
-  const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-  return { mime, bytes };
+  const match = /^data:([^;,]*);base64,([A-Za-z0-9+/]*={0,2})$/.exec(dataURL);
+  if (!match) throw new HTTPException(400, { message: "Invalid image data URL" });
+  try {
+    const bytes = Uint8Array.from(atob(match[2]), c => c.charCodeAt(0));
+    return { mime: match[1], bytes };
+  }
+  catch {
+    throw new HTTPException(400, { message: "Invalid image data URL" });
+  }
 };
 
 export const makeHashFromDataUrl = (dataUrl: string) => {
