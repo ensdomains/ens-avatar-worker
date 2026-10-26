@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { Address, createPublicClient, custom, sha256, zeroAddress } from "viem";
+import { Address, ContractFunctionExecutionError, ContractFunctionRevertedError, createPublicClient, custom, parseAbi, sha256, zeroAddress } from "viem";
 import { readContract } from "viem/actions";
 import { privateKeyToAccount } from "viem/accounts";
 import { namehash } from "viem/ens";
@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
   implementation: "0xC940e5C5bF263C0e097054AECf73826769A72CEE" as Address,
   accountId: "ens-standalone-hca.1.1.0",
   childAvailable: false,
+  parentAvailable: false,
   v2Status: 1,
   v2Owner: "0x0000000000000000000000000000000000000000" as Address,
   v2Expired: false,
@@ -40,7 +41,7 @@ vi.mock("@/utils/chains", async (original) => {
         transport: custom({ request: async () => { throw new Error("Unexpected RPC"); } }),
       }).extend(() => ({
         getOwner: async ({ name }: { name: string }) => ({ owner: state.childAvailable && name === "bob.alice.eth" ? null : state.nameOwner }),
-        getAvailable: async () => false,
+        getAvailable: async () => state.parentAvailable,
       })));
       await next();
     }),
@@ -49,8 +50,11 @@ vi.mock("@/utils/chains", async (original) => {
 
 const signer = privateKeyToAccount(`0x${"11".repeat(32)}`);
 const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+const verifierAbi = parseAbi(["function verifyContract(address proxy) view returns (address)"]);
 const imageUrl = (kind: "avatar" | "header", name = "alice.eth") =>
   `https://avatar-upload-staging.ens-cf.workers.dev/sepolia/${name}${kind === "header" ? "/h" : ""}`;
+const hcaCalls = () => vi.mocked(readContract).mock.calls.filter(([, { functionName }]) =>
+  ["authorizedOwnerOf", "owner", "accountId", "verifyContract"].includes(functionName));
 const upload = async (kind: "avatar" | "header", name = "alice.eth") => {
   const expiry = (Date.now() + 60_000).toString();
   const sig = await signer.signTypedData({
@@ -70,7 +74,7 @@ beforeEach(async () => {
   Object.assign(state, {
     nameOwner: "0x2222222222222222222222222222222222222222", hcaOwner: signer.address,
     certified: true, implementation: "0xC940e5C5bF263C0e097054AECf73826769A72CEE",
-    accountId: "ens-standalone-hca.1.1.0", childAvailable: false,
+    accountId: "ens-standalone-hca.1.1.0", childAvailable: false, parentAvailable: false,
     v2Status: 1, v2Owner: zeroAddress, v2Expired: false, v2Untouched: false,
     hcaRpcFailure: false, factoryOwner: undefined,
     hcaAddress: "0x2222222222222222222222222222222222222222",
@@ -102,9 +106,15 @@ beforeEach(async () => {
       }
       case "owner": return state.hcaOwner;
       case "accountId": return state.accountId;
-      case "verifyContract": return parameters.args?.[0] === "0x5555555555555555555555555555555555555555"
-        ? state.v1Mirror ? "0xBe768b63E5fBBFBB0Ae97E9064E0002dF8001880" : zeroAddress
-        : state.implementation;
+      case "verifyContract": {
+        if (parameters.args?.[0] !== "0x5555555555555555555555555555555555555555") return state.implementation;
+        if (state.v1Mirror) return "0xBe768b63E5fBBFBB0Ae97E9064E0002dF8001880";
+        throw new ContractFunctionExecutionError(new ContractFunctionRevertedError({
+          abi: verifierAbi,
+          functionName: "verifyContract",
+          data: "0x4c87e2b60000000000000000000000005555555555555555555555555555555555555555",
+        }), { abi: verifierAbi, functionName: "verifyContract", args: parameters.args });
+      }
       default: throw new Error("Unexpected contract call");
     }
   });
@@ -115,10 +125,40 @@ beforeEach(async () => {
 });
 
 describe("legacy uploads for HCA-owned names", () => {
-  test("keeps direct EOA uploads working when the HCA lookup fails", async () => {
+  test.each(["avatar", "header"] as const)("skips HCA reads for a direct EOA %s upload", async (kind) => {
     state.nameOwner = signer.address;
     state.hcaRpcFailure = true;
-    expect((await upload("avatar")).status).toBe(200);
+    expect((await upload(kind)).status).toBe(200);
+    expect(hcaCalls()).toHaveLength(0);
+  });
+
+  test.each(["avatar", "header"] as const)("skips HCA reads when the %s preupload is stored under the name owner", async (kind) => {
+    const bucket = kind === "avatar" ? env.AVATAR_BUCKET : env.HEADER_BUCKET;
+    await bucket.put(`sepolia/unregistered/alice.eth/${state.nameOwner}`, jpeg, {
+      httpMetadata: { contentType: "image/jpeg" },
+    });
+    const response = await app.fetch(new Request(imageUrl(kind)), env);
+    expect(response.status).toBe(200);
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(jpeg);
+    expect(hcaCalls()).toHaveLength(0);
+  });
+
+  test.each(["avatar", "header"] as const)("skips HCA reads when no %s preupload exists", async (kind) => {
+    expect((await app.fetch(new Request(imageUrl(kind)), env)).status).toBe(404);
+    expect(hcaCalls()).toHaveLength(0);
+  });
+
+  test.each(["avatar", "header"] as const)("skips HCA reads when the %s uploader owns the parent directly", async (kind) => {
+    state.nameOwner = signer.address;
+    state.childAvailable = true;
+    expect((await upload(kind, "bob.alice.eth")).status).toBe(200);
+    expect(hcaCalls()).toHaveLength(0);
+  });
+
+  test("does not grant HCA authority for an available V1 parent", async () => {
+    state.childAvailable = true;
+    state.parentAvailable = true;
+    expect((await upload("avatar", "bob.alice.eth")).status).toBe(403);
   });
 
   test.each(["avatar", "header"] as const)("allows the current HCA owner to upload and read %s", async (kind) => {
@@ -213,6 +253,17 @@ describe("legacy uploads for HCA-owned names", () => {
     state.nameOwner = signer.address;
     state.v1Mirror = true;
     expect((await upload("avatar", name)).status).toBe(200);
+  });
+
+  test.each(["avatar", "header"] as const)("handles a non-proxy registry during %s preupload and lookup", async (kind) => {
+    state.v2Status = 2;
+    state.v2Owner = signer.address;
+    expect((await upload(kind, "bob.alice.eth")).status).toBe(200);
+    const bucket = kind === "avatar" ? env.AVATAR_BUCKET : env.HEADER_BUCKET;
+    expect((await bucket.list()).objects.map(object => object.key)).toEqual([
+      `sepolia/unregistered/bob.alice.eth/${signer.address}`,
+    ]);
+    expect((await app.fetch(new Request(imageUrl(kind, "bob.alice.eth")), env)).status).toBe(404);
   });
 
   test("does not restore stale V1 child ownership after its mirror is replaced", async () => {

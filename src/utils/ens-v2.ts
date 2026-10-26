@@ -1,4 +1,4 @@
-import { Address, Client, getAddress, isAddressEqual, labelhash, parseAbi, toHex, zeroAddress } from "viem";
+import { Address, BaseError, Client, ContractFunctionRevertedError, getAddress, isAddressEqual, labelhash, parseAbi, toHex, zeroAddress } from "viem";
 import { readContract } from "viem/actions";
 import { namehash, packetToBytes } from "viem/ens";
 import type { EnsPublicClient } from "./chains";
@@ -69,6 +69,11 @@ export const getV2Ownership = async (
     if (registry && label) {
       const implementation = await readContract(publicClient, {
         address: deployment.verifier, abi, functionName: "verifyContract", args: [registry],
+      }).catch((error) => {
+        // The verifier rejects registries that are not one of its proxies.
+        if (error instanceof BaseError
+          && error.walk(cause => cause instanceof ContractFunctionRevertedError) instanceof ContractFunctionRevertedError) return zeroAddress;
+        throw error;
       });
       if (isAddressEqual(implementation, deployment.wrapper)) {
         const [expiry, resolver, mirror, wrappedNode] = await Promise.all([

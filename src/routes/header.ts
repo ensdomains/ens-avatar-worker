@@ -7,6 +7,7 @@ import { Hex } from "viem";
 import { normalize } from "viem/ens";
 import { getVerifiedAddress } from "@/utils/eth";
 import { getOwnerAndAvailable } from "@/utils/owner";
+import { getSupportedHcaOwner } from "@/utils/hca";
 import { dataURLToBytes, R2GetOrHead } from "@/utils/data";
 import { findAndPromoteUnregisteredMedia, MEDIA_BUCKET_KEY } from "@/utils/media";
 import { isSubname, isParentOwner } from "@/utils/subname";
@@ -108,12 +109,12 @@ router.put("/:name/h", clientMiddleware, vValidator("json", uploadSchema), async
     return c.text("Image is too large", 413);
   }
 
-  const { available, owner, signingOwner } = await getOwnerAndAvailable({ client, name });
+  const { available, owner } = await getOwnerAndAvailable({ client, name });
   if (!available) {
     if (!owner) {
       return c.text("Name not found", 404);
     }
-    else if (verifiedAddress !== owner && verifiedAddress !== signingOwner) {
+    else if (verifiedAddress !== owner && verifiedAddress !== await getSupportedHcaOwner(client, owner)) {
       return c.text(`Address ${verifiedAddress} is not the owner of ${name}`, 403);
     }
   }
