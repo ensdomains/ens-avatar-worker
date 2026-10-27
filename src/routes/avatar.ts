@@ -7,6 +7,7 @@ import { Hex } from "viem";
 import { normalize } from "viem/ens";
 import { getVerifiedAddress } from "@/utils/eth";
 import { getOwnerAndAvailable } from "@/utils/owner";
+import { getSupportedHcaOwner } from "@/utils/hca";
 import { dataURLToBytes, R2GetOrHead } from "@/utils/data";
 import {
   findAndPromoteUnregisteredMedia,
@@ -122,7 +123,7 @@ router.put(
       if (!owner) {
         return c.text("Name not found", 404);
       }
-      else if (verifiedAddress !== owner) {
+      else if (verifiedAddress !== owner && verifiedAddress !== await getSupportedHcaOwner(client, owner)) {
         return c.text(
           `Address ${verifiedAddress} is not the owner of ${name}`,
           403,

@@ -1,5 +1,6 @@
 import { EnsPublicClient, Network } from "./chains";
 import { getOwnerAndAvailable } from "./owner";
+import { getSupportedHcaOwner } from "./hca";
 
 export type MediaType = "avatar" | "header";
 
@@ -68,7 +69,19 @@ export const findAndPromoteUnregisteredMedia = async ({
 
   const bucket = getMediaBucket(env, mediaType);
 
-  const unregisteredMediaFile = await bucket.get(MEDIA_BUCKET_KEY.unregistered(network, name, owner));
+  let unregisteredMediaFile = await bucket.get(MEDIA_BUCKET_KEY.unregistered(network, name, owner));
+
+  if (!unregisteredMediaFile) {
+    // Missing images need no HCA proof unless there is a preupload to promote.
+    const preuploads = await bucket.list({
+      prefix: MEDIA_BUCKET_KEY.unregistered(network, name, ""),
+      limit: 1,
+    });
+    if (!preuploads.objects.length) return;
+    const signingOwner = await getSupportedHcaOwner(client, owner);
+    if (!signingOwner) return;
+    unregisteredMediaFile = await bucket.get(MEDIA_BUCKET_KEY.unregistered(network, name, signingOwner));
+  }
 
   if (!unregisteredMediaFile) {
     return;

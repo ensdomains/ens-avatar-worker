@@ -17,6 +17,29 @@ describe("getVerifiedAddress", () => {
     vi.resetAllMocks();
   });
 
+  test("accepts the prefix-free image hash signed by Manager", async () => {
+    const expiry = (Date.now() + 60_000).toString();
+    const sig = await TEST_ACCOUNT.signTypedData({
+      ...typedDataParameters,
+      message: {
+        upload: "avatar",
+        expiry,
+        name: TEST_NAME,
+        hash: TEST_HASH.slice(2),
+      },
+    });
+    const result = await getVerifiedAddress({
+      client: TEST_PUBLIC_CLIENT,
+      sig,
+      expiry,
+      name: TEST_NAME,
+      hash: TEST_HASH,
+      unverifiedAddress: TEST_ACCOUNT.address,
+      uploadType: "avatar",
+    });
+    expect(result).toBe(TEST_ACCOUNT.address);
+  });
+
   test("should return the address when signature is valid", async () => {
     // Arrange
     const { address, expiry, sig } = await createTestUploadData(

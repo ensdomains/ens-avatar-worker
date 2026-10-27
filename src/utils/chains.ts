@@ -25,16 +25,16 @@ export type Chain =
 export type Network = "mainnet" | "goerli" | "sepolia" | "holesky" | "localhost";
 export type EnsPublicClient = ReturnType<typeof createEnsPublicClient>;
 
-const isDev = (c: Context<BaseEnv & NetworkMiddlewareEnv, string, object>) => c.env.ENVIRONMENT === "dev";
+const isDev = (c?: Context<BaseEnv & NetworkMiddlewareEnv, string, object>) => c?.env.ENVIRONMENT === "dev";
 
 export const getChainFromNetwork = (
   _network: string,
-  c: Context<BaseEnv & NetworkMiddlewareEnv, string, object>,
+  c?: Context<BaseEnv & NetworkMiddlewareEnv, string, object>,
 ) => {
   const lowercased = _network.toLowerCase();
 
   // Handle localhost network in development mode
-  if (lowercased === "localhost" && isDev(c)) {
+  if (lowercased === "localhost" && c && isDev(c)) {
     return addLocalhostEnsContracts(c.env);
   }
 
@@ -81,7 +81,9 @@ export type ClientMiddlewareEnv = NetworkMiddlewareEnv & {
 };
 export const clientMiddleware = createMiddleware<BaseEnv & ClientMiddlewareEnv>(
   async (c, next) => {
-    const endpointMap = JSON.parse(c.env.WEB3_ENDPOINT_MAP ?? "{}") as Record<
+    const endpointMap = (typeof c.env.WEB3_ENDPOINT_MAP === "string"
+      ? JSON.parse(c.env.WEB3_ENDPOINT_MAP)
+      : c.env.WEB3_ENDPOINT_MAP ?? {}) as Record<
       Network,
       string
     >;
